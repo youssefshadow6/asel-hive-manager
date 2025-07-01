@@ -7,25 +7,29 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Package, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { RawMaterial } from "@/pages/Index";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useRawMaterials } from "@/hooks/useRawMaterials";
 import { toast } from "@/hooks/use-toast";
 
 interface RawMaterialsManagerProps {
-  materials: RawMaterial[];
-  setMaterials: (materials: RawMaterial[]) => void;
   language: 'en' | 'ar';
 }
 
-export const RawMaterialsManager = ({ materials, setMaterials, language }: RawMaterialsManagerProps) => {
+const materialUnits = ['kg', 'pieces', 'sacks', 'liters', 'grams'];
+
+export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
+  const { materials, loading, addMaterial, receiveMaterial } = useRawMaterials();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isReceiveDialogOpen, setIsReceiveDialogOpen] = useState(false);
-  const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial | null>(null);
+  const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
   const [newMaterial, setNewMaterial] = useState({
     name: '',
-    nameAr: '',
-    unit: '',
-    minThreshold: 0,
-    initialStock: 0
+    name_ar: '',
+    unit: 'kg',
+    min_threshold: 0,
+    current_stock: 0,
+    cost_per_unit: 0,
+    supplier: ''
   });
   const [receiveQuantity, setReceiveQuantity] = useState(0);
 
@@ -36,10 +40,11 @@ export const RawMaterialsManager = ({ materials, setMaterials, language }: RawMa
       receiveMaterial: "Receive Material",
       materialName: "Material Name (English)",
       materialNameAr: "Material Name (Arabic)",
-      unit: "Unit (kg, pieces, sacks, etc.)",
+      unit: "Unit",
       minThreshold: "Minimum Threshold",
-      initialStock: "Initial Stock",
       currentStock: "Current Stock",
+      costPerUnit: "Cost per Unit",
+      supplier: "Supplier",
       lastReceived: "Last Received",
       lowStock: "Low Stock",
       actions: "Actions",
@@ -49,7 +54,8 @@ export const RawMaterialsManager = ({ materials, setMaterials, language }: RawMa
       quantity: "Quantity",
       save: "Save",
       materialAdded: "Material added successfully",
-      materialReceived: "Material received successfully"
+      materialReceived: "Material received successfully",
+      loading: "Loading..."
     },
     ar: {
       rawMaterials: "المواد الخام",
@@ -57,10 +63,11 @@ export const RawMaterialsManager = ({ materials, setMaterials, language }: RawMa
       receiveMaterial: "استلام مادة",
       materialName: "اسم المادة (بالإنجليزية)",
       materialNameAr: "اسم المادة (بالعربية)",
-      unit: "الوحدة (كيلو، قطعة، كيس، إلخ)",
+      unit: "الوحدة",
       minThreshold: "الحد الأدنى",
-      initialStock: "المخزون الابتدائي",
       currentStock: "المخزون الحالي",
+      costPerUnit: "التكلفة لكل وحدة",
+      supplier: "المورد",
       lastReceived: "آخر استلام",
       lowStock: "مخزون منخفض",
       actions: "الإجراءات",
@@ -70,14 +77,15 @@ export const RawMaterialsManager = ({ materials, setMaterials, language }: RawMa
       quantity: "الكمية",
       save: "حفظ",
       materialAdded: "تم إضافة المادة بنجاح",
-      materialReceived: "تم استلام المادة بنجاح"
+      materialReceived: "تم استلام المادة بنجاح",
+      loading: "جاري التحميل..."
     }
   };
 
   const t = translations[language];
 
-  const addMaterial = () => {
-    if (!newMaterial.name || !newMaterial.nameAr || !newMaterial.unit) {
+  const handleAddMaterial = async () => {
+    if (!newMaterial.name || !newMaterial.name_ar || !newMaterial.unit) {
       toast({
         title: language === 'en' ? "Error" : "خطأ",
         description: language === 'en' ? "Please fill all required fields" : "يرجى ملء جميع الحقول المطلوبة",
@@ -86,49 +94,64 @@ export const RawMaterialsManager = ({ materials, setMaterials, language }: RawMa
       return;
     }
 
-    const material: RawMaterial = {
-      id: Date.now().toString(),
-      name: newMaterial.name,
-      nameAr: newMaterial.nameAr,
-      unit: newMaterial.unit,
-      currentStock: newMaterial.initialStock,
-      minThreshold: newMaterial.minThreshold,
-      lastReceived: new Date()
-    };
-
-    setMaterials([...materials, material]);
-    setNewMaterial({ name: '', nameAr: '', unit: '', minThreshold: 0, initialStock: 0 });
-    setIsAddDialogOpen(false);
-    
-    toast({
-      title: language === 'en' ? "Success" : "نجح",
-      description: t.materialAdded
-    });
+    try {
+      await addMaterial({
+        name: newMaterial.name,
+        name_ar: newMaterial.name_ar,
+        unit: newMaterial.unit,
+        current_stock: newMaterial.current_stock,
+        min_threshold: newMaterial.minThreshold,
+        cost_per_unit: newMaterial.cost_per_unit || 0,
+        supplier: newMaterial.supplier
+      });
+      
+      setNewMaterial({
+        name: '',
+        name_ar: '',
+        unit: 'kg',
+        min_threshold: 0,
+        current_stock: 0,
+        cost_per_unit: 0,
+        supplier: ''
+      });
+      setIsAddDialogOpen(false);
+      
+      toast({
+        title: language === 'en' ? "Success" : "نجح",
+        description: t.materialAdded
+      });
+    } catch (error) {
+      // Error handling is done in the hook
+    }
   };
 
-  const receiveMaterial = () => {
-    if (!selectedMaterial || receiveQuantity <= 0) return;
+  const handleReceiveMaterial = async () => {
+    if (!selectedMaterialId || receiveQuantity <= 0) return;
 
-    const updatedMaterials = materials.map(material => 
-      material.id === selectedMaterial.id 
-        ? { 
-            ...material, 
-            currentStock: material.currentStock + receiveQuantity,
-            lastReceived: new Date()
-          }
-        : material
+    try {
+      await receiveMaterial(selectedMaterialId, receiveQuantity);
+      setReceiveQuantity(0);
+      setSelectedMaterialId(null);
+      setIsReceiveDialogOpen(false);
+      
+      toast({
+        title: language === 'en' ? "Success" : "نجح",
+        description: t.materialReceived
+      });
+    } catch (error) {
+      // Error handling is done in the hook
+    }
+  };
+
+  const selectedMaterial = materials.find(m => m.id === selectedMaterialId);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-8">
+        <p className="text-amber-900 font-medium">{t.loading}</p>
+      </div>
     );
-
-    setMaterials(updatedMaterials);
-    setReceiveQuantity(0);
-    setSelectedMaterial(null);
-    setIsReceiveDialogOpen(false);
-    
-    toast({
-      title: language === 'en' ? "Success" : "نجح",
-      description: t.materialReceived
-    });
-  };
+  }
 
   return (
     <div className="space-y-6">
@@ -161,40 +184,44 @@ export const RawMaterialsManager = ({ materials, setMaterials, language }: RawMa
                 <Label htmlFor="nameAr">{t.materialNameAr}</Label>
                 <Input
                   id="nameAr"
-                  value={newMaterial.nameAr}
-                  onChange={(e) => setNewMaterial({...newMaterial, nameAr: e.target.value})}
+                  value={newMaterial.name_ar}
+                  onChange={(e) => setNewMaterial({...newMaterial, name_ar: e.target.value})}
                   placeholder="عسل خام"
                 />
               </div>
               <div>
                 <Label htmlFor="unit">{t.unit}</Label>
-                <Input
-                  id="unit"
-                  value={newMaterial.unit}
-                  onChange={(e) => setNewMaterial({...newMaterial, unit: e.target.value})}
-                  placeholder="kg"
-                />
+                <Select value={newMaterial.unit} onValueChange={(value) => setNewMaterial({...newMaterial, unit: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {materialUnits.map(unit => (
+                      <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="minThreshold">{t.minThreshold}</Label>
                 <Input
                   id="minThreshold"
                   type="number"
-                  value={newMaterial.minThreshold}
-                  onChange={(e) => setNewMaterial({...newMaterial, minThreshold: Number(e.target.value)})}
+                  value={newMaterial.min_threshold}
+                  onChange={(e) => setNewMaterial({...newMaterial, min_threshold: Number(e.target.value)})}
                 />
               </div>
               <div>
-                <Label htmlFor="initialStock">{t.initialStock}</Label>
+                <Label htmlFor="currentStock">{t.currentStock}</Label>
                 <Input
-                  id="initialStock"
+                  id="currentStock"
                   type="number"
-                  value={newMaterial.initialStock}
-                  onChange={(e) => setNewMaterial({...newMaterial, initialStock: Number(e.target.value)})}
+                  value={newMaterial.current_stock}
+                  onChange={(e) => setNewMaterial({...newMaterial, current_stock: Number(e.target.value)})}
                 />
               </div>
               <div className="flex space-x-2">
-                <Button onClick={addMaterial} className="flex-1 bg-amber-600 hover:bg-amber-700">
+                <Button onClick={handleAddMaterial} className="flex-1 bg-amber-600 hover:bg-amber-700">
                   {t.add}
                 </Button>
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="flex-1">
@@ -214,13 +241,13 @@ export const RawMaterialsManager = ({ materials, setMaterials, language }: RawMa
               <div className="flex justify-between items-start">
                 <div>
                   <CardTitle className="text-lg text-amber-900">
-                    {language === 'en' ? material.name : material.nameAr}
+                    {language === 'en' ? material.name : material.name_ar}
                   </CardTitle>
                   <p className="text-sm text-gray-600">
-                    {language === 'en' ? material.nameAr : material.name}
+                    {language === 'en' ? material.name_ar : material.name}
                   </p>
                 </div>
-                {material.currentStock <= material.minThreshold && (
+                {material.current_stock <= material.min_threshold && (
                   <Badge variant="destructive" className="flex items-center space-x-1">
                     <AlertTriangle className="w-3 h-3" />
                     <span>{t.lowStock}</span>
@@ -233,18 +260,18 @@ export const RawMaterialsManager = ({ materials, setMaterials, language }: RawMa
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">{t.currentStock}:</span>
                   <span className="font-bold text-amber-700">
-                    {material.currentStock} {material.unit}
+                    {material.current_stock} {material.unit}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">{t.minThreshold}:</span>
-                  <span className="text-sm">{material.minThreshold} {material.unit}</span>
+                  <span className="text-sm">{material.min_threshold} {material.unit}</span>
                 </div>
-                {material.lastReceived && (
+                {material.last_received && (
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">{t.lastReceived}:</span>
                     <span className="text-sm">
-                      {material.lastReceived.toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US')}
+                      {new Date(material.last_received).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US')}
                     </span>
                   </div>
                 )}
@@ -254,7 +281,7 @@ export const RawMaterialsManager = ({ materials, setMaterials, language }: RawMa
                   size="sm" 
                   className="w-full mt-4 border-amber-300 text-amber-700 hover:bg-amber-50"
                   onClick={() => {
-                    setSelectedMaterial(material);
+                    setSelectedMaterialId(material.id);
                     setIsReceiveDialogOpen(true);
                   }}
                 >
@@ -275,7 +302,7 @@ export const RawMaterialsManager = ({ materials, setMaterials, language }: RawMa
               {t.receiveMaterial}
               {selectedMaterial && (
                 <span className="block text-sm font-normal text-gray-600 mt-1">
-                  {language === 'en' ? selectedMaterial.name : selectedMaterial.nameAr}
+                  {language === 'en' ? selectedMaterial.name : selectedMaterial.name_ar}
                 </span>
               )}
             </DialogTitle>
@@ -293,7 +320,7 @@ export const RawMaterialsManager = ({ materials, setMaterials, language }: RawMa
               />
             </div>
             <div className="flex space-x-2">
-              <Button onClick={receiveMaterial} className="flex-1 bg-amber-600 hover:bg-amber-700">
+              <Button onClick={handleReceiveMaterial} className="flex-1 bg-amber-600 hover:bg-amber-700">
                 {t.save}
               </Button>
               <Button 

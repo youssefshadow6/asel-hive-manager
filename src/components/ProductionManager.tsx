@@ -7,16 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Factory, Plus, Minus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { RawMaterial, Product, ProductionRecord } from "@/pages/Index";
+import { useRawMaterials } from "@/hooks/useRawMaterials";
+import { useProducts } from "@/hooks/useProducts";
+import { useProduction } from "@/hooks/useProduction";
 import { toast } from "@/hooks/use-toast";
 
 interface ProductionManagerProps {
-  rawMaterials: RawMaterial[];
-  setRawMaterials: (materials: RawMaterial[]) => void;
-  products: Product[];
-  setProducts: (products: Product[]) => void;
-  productionRecords: ProductionRecord[];
-  setProductionRecords: (records: ProductionRecord[]) => void;
   language: 'en' | 'ar';
 }
 
@@ -25,31 +21,17 @@ interface MaterialRequirement {
   quantityPerUnit: number;
 }
 
-const productionRecipes: Record<string, MaterialRequirement[]> = {
-  '1': [ // Honey Jar 500g
-    { materialId: '1', quantityPerUnit: 0.5 }, // Raw Honey: 0.5kg per jar
-    { materialId: '3', quantityPerUnit: 1 },   // Glass Jar: 1 per jar
-    { materialId: '4', quantityPerUnit: 1 },   // Lid: 1 per jar
-    { materialId: '5', quantityPerUnit: 1 },   // Label: 1 per jar
-  ],
-  '2': [ // Sage Tea Blend
-    { materialId: '2', quantityPerUnit: 0.1 }, // Sage Herbs: 0.1 sacks per 100g
-    { materialId: '5', quantityPerUnit: 1 },   // Label: 1 per package
-  ]
-};
+const productionRecipes: Record<string, MaterialRequirement[]> = {};
 
-export const ProductionManager = ({ 
-  rawMaterials, 
-  setRawMaterials, 
-  products, 
-  setProducts,
-  productionRecords,
-  setProductionRecords,
-  language 
-}: ProductionManagerProps) => {
+export const ProductionManager = ({ language }: ProductionManagerProps) => {
+  const { materials: rawMaterials, refetch: refetchMaterials } = useRawMaterials();
+  const { products, refetch: refetchProducts } = useProducts();
+  const { productionRecords, recordProduction } = useProduction();
+  
   const [isProductionDialogOpen, setIsProductionDialogOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [productionQuantity, setProductionQuantity] = useState(1);
+  const [materialRequirements, setMaterialRequirements] = useState<{[key: string]: number}>({});
 
   const translations = {
     en: {
@@ -69,7 +51,9 @@ export const ProductionManager = ({
       recentProduction: "Recent Production",
       noProduction: "No production records yet",
       produced: "Produced",
-      units: "units"
+      units: "units",
+      addMaterial: "Add Material",
+      quantityNeeded: "Quantity Needed"
     },
     ar: {
       production: "إدارة الإنتاج",
@@ -88,7 +72,9 @@ export const ProductionManager = ({
       recentProduction: "الإنتاج الأخير",
       noProduction: "لا توجد سجلات إنتاج بعد",
       produced: "تم إنتاج",
-      units: "وحدة"
+      units: "وحدة",
+      addMaterial: "إضافة مادة",
+      quantityNeeded: "الكمية المطلوبة"
     }
   };
 
@@ -97,28 +83,26 @@ export const ProductionManager = ({
   const getSelectedProduct = () => products.find(p => p.id === selectedProductId);
 
   const getRequiredMaterials = () => {
-    if (!selectedProductId || !productionRecipes[selectedProductId]) return [];
-    
-    return productionRecipes[selectedProductId].map(req => {
-      const material = rawMaterials.find(m => m.id === req.materialId);
-      const totalRequired = req.quantityPerUnit * productionQuantity;
+    return Object.entries(materialRequirements).map(([materialId, quantityPerUnit]) => {
+      const material = rawMaterials.find(m => m.id === materialId);
+      const totalRequired = quantityPerUnit * productionQuantity;
       
       return {
         material,
-        quantityPerUnit: req.quantityPerUnit,
+        quantityPerUnit,
         totalRequired,
-        available: material?.currentStock || 0,
-        sufficient: (material?.currentStock || 0) >= totalRequired
+        available: material?.current_stock || 0,
+        sufficient: (material?.current_stock || 0) >= totalRequired
       };
-    });
+    }).filter(req => req.material);
   };
 
   const canProduce = () => {
     const requirements = getRequiredMaterials();
-    return requirements.every(req => req.sufficient);
+    return requirements.length > 0 && requirements.every(req => req.sufficient);
   };
 
-  const recordProduction = () => {
+  const handleRecordProduction = async () => {
     if (!selectedProductId || !canProduce()) {
       toast({
         title: language === 'en' ? "Error" : "خطأ",
@@ -129,54 +113,54 @@ export const ProductionManager = ({
     }
 
     const requirements = getRequiredMaterials();
-    
-    // Update raw materials stock
-    const updatedMaterials = rawMaterials.map(material => {
-      const requirement = requirements.find(req => req.material?.id === material.id);
-      if (requirement) {
-        return {
-          ...material,
-          currentStock: material.currentStock - requirement.totalRequired
-        };
-      }
-      return material;
-    });
+    const materials = requirements.map(req => ({
+      material_id: req.material!.id,
+      quantity_used: req.totalRequired,
+      cost_at_time: req.material!.cost_per_unit || 0
+    }));
 
-    // Update product stock
-    const updatedProducts = products.map(product => {
-      if (product.id === selectedProductId) {
-        return {
-          ...product,
-          currentStock: product.currentStock + productionQuantity
-        };
-      }
-      return product;
-    });
+    try {
+      await recordProduction(selectedProductId, productionQuantity, materials);
+      
+      // Refresh data
+      refetchMaterials();
+      refetchProducts();
+      
+      // Reset form
+      setSelectedProductId('');
+      setProductionQuantity(1);
+      setMaterialRequirements({});
+      setIsProductionDialogOpen(false);
 
-    // Create production record
-    const productionRecord: ProductionRecord = {
-      id: Date.now().toString(),
-      productId: selectedProductId,
-      quantity: productionQuantity,
-      date: new Date(),
-      materials: requirements.map(req => ({
-        materialId: req.material!.id,
-        quantity: req.totalRequired
-      }))
-    };
+      toast({
+        title: language === 'en' ? "Success" : "نجح",
+        description: t.productionRecorded
+      });
+    } catch (error) {
+      // Error handling is done in the hook
+    }
+  };
 
-    setRawMaterials(updatedMaterials);
-    setProducts(updatedProducts);
-    setProductionRecords([productionRecord, ...productionRecords]);
-    
-    setSelectedProductId('');
-    setProductionQuantity(1);
-    setIsProductionDialogOpen(false);
+  const addMaterialRequirement = () => {
+    const availableMaterials = rawMaterials.filter(m => !materialRequirements[m.id]);
+    if (availableMaterials.length > 0) {
+      setMaterialRequirements(prev => ({
+        ...prev,
+        [availableMaterials[0].id]: 1
+      }));
+    }
+  };
 
-    toast({
-      title: language === 'en' ? "Success" : "نجح",
-      description: t.productionRecorded
-    });
+  const updateMaterialRequirement = (materialId: string, quantity: number) => {
+    if (quantity <= 0) {
+      const { [materialId]: removed, ...rest } = materialRequirements;
+      setMaterialRequirements(rest);
+    } else {
+      setMaterialRequirements(prev => ({
+        ...prev,
+        [materialId]: quantity
+      }));
+    }
   };
 
   return (
@@ -208,7 +192,7 @@ export const ProductionManager = ({
                     <SelectContent>
                       {products.map(product => (
                         <SelectItem key={product.id} value={product.id}>
-                          {language === 'en' ? product.name : product.nameAr}
+                          {language === 'en' ? product.name : product.name_ar}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -242,54 +226,75 @@ export const ProductionManager = ({
                 </div>
               </div>
 
-              {/* Materials Requirements */}
-              {selectedProductId && (
-                <div>
-                  <h3 className="font-semibold text-amber-900 mb-3">{t.materialsRequired}</h3>
-                  <div className="space-y-3">
-                    {getRequiredMaterials().map((req, index) => (
+              {/* Material Requirements */}
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-semibold text-amber-900">{t.materialsRequired}</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addMaterialRequirement}
+                    disabled={Object.keys(materialRequirements).length >= rawMaterials.length}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t.addMaterial}
+                  </Button>
+                </div>
+                
+                <div className="space-y-3">
+                  {Object.entries(materialRequirements).map(([materialId, quantityPerUnit]) => {
+                    const material = rawMaterials.find(m => m.id === materialId);
+                    const totalRequired = quantityPerUnit * productionQuantity;
+                    const sufficient = (material?.current_stock || 0) >= totalRequired;
+                    
+                    return (
                       <div 
-                        key={index} 
+                        key={materialId}
                         className={`p-3 rounded-lg border ${
-                          req.sufficient ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                          sufficient ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
                         }`}
                       >
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center mb-2">
                           <div>
                             <span className="font-medium">
-                              {language === 'en' ? req.material?.name : req.material?.nameAr}
+                              {language === 'en' ? material?.name : material?.name_ar}
                             </span>
                             <span className="text-sm text-gray-600 ml-2">
-                              ({req.material?.unit})
+                              ({material?.unit})
                             </span>
                           </div>
-                          <div className="text-right">
-                            <div className="text-sm">
-                              <span className="text-gray-600">{t.required}: </span>
-                              <span className="font-semibold">{req.totalRequired}</span>
-                            </div>
-                            <div className="text-sm">
-                              <span className="text-gray-600">{t.available}: </span>
-                              <span className={req.sufficient ? 'text-green-600' : 'text-red-600'}>
-                                {req.available}
-                              </span>
-                            </div>
+                          <div className="flex items-center space-x-2">
+                            <Input
+                              type="number"
+                              value={quantityPerUnit}
+                              onChange={(e) => updateMaterialRequirement(materialId, Number(e.target.value))}
+                              className="w-20 text-center"
+                              min="0"
+                              step="0.1"
+                            />
+                            <span className="text-sm text-gray-600">per unit</span>
                           </div>
                         </div>
-                        {!req.sufficient && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">{t.required}: {totalRequired}</span>
+                          <span className={sufficient ? 'text-green-600' : 'text-red-600'}>
+                            {t.available}: {material?.current_stock || 0}
+                          </span>
+                        </div>
+                        {!sufficient && (
                           <div className="text-sm text-red-600 mt-1">
                             {t.insufficient}
                           </div>
                         )}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
 
               <div className="flex space-x-2">
                 <Button 
-                  onClick={recordProduction} 
+                  onClick={handleRecordProduction} 
                   disabled={!canProduce() || !selectedProductId}
                   className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300"
                 >
@@ -319,16 +324,16 @@ export const ProductionManager = ({
           ) : (
             <div className="space-y-4">
               {productionRecords.slice(0, 10).map((record) => {
-                const product = products.find(p => p.id === record.productId);
+                const product = products.find(p => p.id === record.product_id);
                 return (
                   <div key={record.id} className="flex justify-between items-center p-4 bg-amber-50 rounded-lg">
                     <div>
                       <div className="font-medium text-amber-900">
-                        {language === 'en' ? product?.name : product?.nameAr}
+                        {language === 'en' ? product?.name : product?.name_ar}
                       </div>
                       <div className="text-sm text-gray-600">
-                        {record.date.toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US')} - 
-                        {record.date.toLocaleTimeString(language === 'ar' ? 'ar-SA' : 'en-US')}
+                        {new Date(record.production_date).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US')} - 
+                        {new Date(record.production_date).toLocaleTimeString(language === 'ar' ? 'ar-SA' : 'en-US')}
                       </div>
                     </div>
                     <div className="text-right">

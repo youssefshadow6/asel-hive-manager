@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,69 +8,24 @@ import { RawMaterialsManager } from "@/components/RawMaterialsManager";
 import { ProductionManager } from "@/components/ProductionManager";
 import { SalesManager } from "@/components/SalesManager";
 import { StockAlertsPanel } from "@/components/StockAlertsPanel";
-
-// Types for our inventory system
-export interface RawMaterial {
-  id: string;
-  name: string;
-  nameAr: string;
-  unit: string;
-  currentStock: number;
-  minThreshold: number;
-  lastReceived?: Date;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  nameAr: string;
-  size: string;
-  currentStock: number;
-  minThreshold: number;
-}
-
-export interface ProductionRecord {
-  id: string;
-  productId: string;
-  quantity: number;
-  date: Date;
-  materials: { materialId: string; quantity: number }[];
-}
-
-export interface SaleRecord {
-  id: string;
-  productId: string;
-  quantity: number;
-  customerName: string;
-  date: Date;
-  price: number;
-}
+import { useRawMaterials } from "@/hooks/useRawMaterials";
+import { useProducts } from "@/hooks/useProducts";
+import { useProduction } from "@/hooks/useProduction";
+import { useSales } from "@/hooks/useSales";
 
 const Index = () => {
   const [language, setLanguage] = useState<'en' | 'ar'>('en');
   const [activeTab, setActiveTab] = useState('dashboard');
   
-  // Initial raw materials data
-  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([
-    { id: '1', name: 'Raw Honey', nameAr: 'عسل خام', unit: 'kg', currentStock: 50, minThreshold: 10 },
-    { id: '2', name: 'Sage Herbs', nameAr: 'أعشاب المرمية', unit: 'sacks', currentStock: 8, minThreshold: 2 },
-    { id: '3', name: 'Glass Jars 500g', nameAr: 'برطمانات زجاج ٥٠٠ جم', unit: 'pieces', currentStock: 120, minThreshold: 20 },
-    { id: '4', name: 'Lids', nameAr: 'أغطية', unit: 'pieces', currentStock: 100, minThreshold: 20 },
-    { id: '5', name: 'Labels', nameAr: 'ملصقات', unit: 'pieces', currentStock: 80, minThreshold: 15 },
-  ]);
-
-  // Initial products data
-  const [products, setProducts] = useState<Product[]>([
-    { id: '1', name: 'Honey Jar 500g', nameAr: 'برطمان عسل ٥٠٠ جم', size: '500g', currentStock: 25, minThreshold: 5 },
-    { id: '2', name: 'Sage Tea Blend', nameAr: 'خليط شاي المرمية', size: '100g', currentStock: 15, minThreshold: 3 },
-  ]);
-
-  const [productionRecords, setProductionRecords] = useState<ProductionRecord[]>([]);
-  const [salesRecords, setSalesRecords] = useState<SaleRecord[]>([]);
+  // Use database hooks
+  const { materials: rawMaterials, loading: materialsLoading } = useRawMaterials();
+  const { products, loading: productsLoading } = useProducts();
+  const { productionRecords } = useProduction();
+  const { salesRecords } = useSales();
 
   // Get low stock items
-  const lowStockMaterials = rawMaterials.filter(material => material.currentStock <= material.minThreshold);
-  const lowStockProducts = products.filter(product => product.currentStock <= product.minThreshold);
+  const lowStockMaterials = rawMaterials.filter(material => material.current_stock <= material.min_threshold);
+  const lowStockProducts = products.filter(product => product.current_stock <= product.min_threshold);
 
   const translations = {
     en: {
@@ -86,7 +41,8 @@ const Index = () => {
       addMaterial: "Add Material",
       recordProduction: "Record Production",
       recordSale: "Record Sale",
-      viewReports: "View Reports"
+      viewReports: "View Reports",
+      loading: "Loading..."
     },
     ar: {
       title: "نظام إدارة أعمال العسل والأعشاب",
@@ -101,11 +57,25 @@ const Index = () => {
       addMaterial: "إضافة مادة",
       recordProduction: "تسجيل إنتاج",
       recordSale: "تسجيل بيع",
-      viewReports: "عرض التقارير"
+      viewReports: "عرض التقارير",
+      loading: "جاري التحميل..."
     }
   };
 
   const t = translations[language];
+
+  if (materialsLoading || productsLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-yellow-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center mb-4 mx-auto">
+            <span className="text-white font-bold text-sm">🍯</span>
+          </div>
+          <p className="text-amber-900 font-medium">{t.loading}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen bg-gradient-to-br from-amber-50 to-yellow-50 ${language === 'ar' ? 'rtl' : 'ltr'}`}>
@@ -208,7 +178,7 @@ const Index = () => {
                 <CardContent>
                   <div className="text-2xl font-bold text-amber-700">{products.length}</div>
                   <p className="text-xs text-amber-600">
-                    {products.reduce((sum, p) => sum + p.currentStock, 0)} {language === 'en' ? 'total units' : 'إجمالي الوحدات'}
+                    {products.reduce((sum, p) => sum + p.current_stock, 0)} {language === 'en' ? 'total units' : 'إجمالي الوحدات'}
                   </p>
                 </CardContent>
               </Card>
@@ -224,7 +194,8 @@ const Index = () => {
                   <div className="text-2xl font-bold text-amber-700">
                     {salesRecords.filter(sale => {
                       const today = new Date();
-                      return sale.date.toDateString() === today.toDateString();
+                      const saleDate = new Date(sale.sale_date);
+                      return saleDate.toDateString() === today.toDateString();
                     }).length}
                   </div>
                   <p className="text-xs text-amber-600">
@@ -246,13 +217,13 @@ const Index = () => {
                       <div key={material.id} className="flex justify-between items-center">
                         <div>
                           <span className="font-medium text-gray-900">
-                            {language === 'en' ? material.name : material.nameAr}
+                            {language === 'en' ? material.name : material.name_ar}
                           </span>
                           <span className="text-sm text-gray-500 ml-2">({material.unit})</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span className="font-bold text-amber-700">{material.currentStock}</span>
-                          {material.currentStock <= material.minThreshold && (
+                          <span className="font-bold text-amber-700">{material.current_stock}</span>
+                          {material.current_stock <= material.min_threshold && (
                             <Badge variant="destructive" className="text-xs">
                               {language === 'en' ? 'Low' : 'قليل'}
                             </Badge>
@@ -276,13 +247,13 @@ const Index = () => {
                       <div key={product.id} className="flex justify-between items-center">
                         <div>
                           <span className="font-medium text-gray-900">
-                            {language === 'en' ? product.name : product.nameAr}
+                            {language === 'en' ? product.name : product.name_ar}
                           </span>
                           <span className="text-sm text-gray-500 ml-2">({product.size})</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span className="font-bold text-amber-700">{product.currentStock}</span>
-                          {product.currentStock <= product.minThreshold && (
+                          <span className="font-bold text-amber-700">{product.current_stock}</span>
+                          {product.current_stock <= product.min_threshold && (
                             <Badge variant="destructive" className="text-xs">
                               {language === 'en' ? 'Low' : 'قليل'}
                             </Badge>
@@ -298,33 +269,15 @@ const Index = () => {
         )}
 
         {activeTab === 'materials' && (
-          <RawMaterialsManager 
-            materials={rawMaterials}
-            setMaterials={setRawMaterials}
-            language={language}
-          />
+          <RawMaterialsManager language={language} />
         )}
 
         {activeTab === 'production' && (
-          <ProductionManager 
-            rawMaterials={rawMaterials}
-            setRawMaterials={setRawMaterials}
-            products={products}
-            setProducts={setProducts}
-            productionRecords={productionRecords}
-            setProductionRecords={setProductionRecords}
-            language={language}
-          />
+          <ProductionManager language={language} />
         )}
 
         {activeTab === 'sales' && (
-          <SalesManager 
-            products={products}
-            setProducts={setProducts}
-            salesRecords={salesRecords}
-            setSalesRecords={setSalesRecords}
-            language={language}
-          />
+          <SalesManager language={language} />
         )}
       </main>
     </div>

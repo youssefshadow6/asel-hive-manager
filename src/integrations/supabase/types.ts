@@ -9,7 +9,262 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      production_materials: {
+        Row: {
+          cost_at_time: number | null
+          id: string
+          material_id: string
+          production_record_id: string
+          quantity_used: number
+        }
+        Insert: {
+          cost_at_time?: number | null
+          id?: string
+          material_id: string
+          production_record_id: string
+          quantity_used: number
+        }
+        Update: {
+          cost_at_time?: number | null
+          id?: string
+          material_id?: string
+          production_record_id?: string
+          quantity_used?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_materials_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "raw_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_materials_production_record_id_fkey"
+            columns: ["production_record_id"]
+            isOneToOne: false
+            referencedRelation: "production_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_records: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          product_id: string
+          production_date: string
+          quantity: number
+          total_cost: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          product_id: string
+          production_date?: string
+          quantity: number
+          total_cost?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          product_id?: string
+          production_date?: string
+          quantity?: number
+          total_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_records_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          created_at: string
+          current_stock: number
+          id: string
+          min_threshold: number
+          name: string
+          name_ar: string
+          production_cost: number | null
+          selling_price: number | null
+          size: Database["public"]["Enums"]["product_size"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_stock?: number
+          id?: string
+          min_threshold?: number
+          name: string
+          name_ar: string
+          production_cost?: number | null
+          selling_price?: number | null
+          size: Database["public"]["Enums"]["product_size"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_stock?: number
+          id?: string
+          min_threshold?: number
+          name?: string
+          name_ar?: string
+          production_cost?: number | null
+          selling_price?: number | null
+          size?: Database["public"]["Enums"]["product_size"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      raw_materials: {
+        Row: {
+          cost_per_unit: number | null
+          created_at: string
+          current_stock: number
+          id: string
+          last_received: string | null
+          min_threshold: number
+          name: string
+          name_ar: string
+          supplier: string | null
+          unit: Database["public"]["Enums"]["material_unit"]
+          updated_at: string
+        }
+        Insert: {
+          cost_per_unit?: number | null
+          created_at?: string
+          current_stock?: number
+          id?: string
+          last_received?: string | null
+          min_threshold?: number
+          name: string
+          name_ar: string
+          supplier?: string | null
+          unit: Database["public"]["Enums"]["material_unit"]
+          updated_at?: string
+        }
+        Update: {
+          cost_per_unit?: number | null
+          created_at?: string
+          current_stock?: number
+          id?: string
+          last_received?: string | null
+          min_threshold?: number
+          name?: string
+          name_ar?: string
+          supplier?: string | null
+          unit?: Database["public"]["Enums"]["material_unit"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sales_records: {
+        Row: {
+          created_at: string
+          customer_name: string
+          id: string
+          notes: string | null
+          payment_method: string | null
+          product_id: string
+          quantity: number
+          sale_date: string
+          sale_price: number
+          total_amount: number
+        }
+        Insert: {
+          created_at?: string
+          customer_name: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          product_id: string
+          quantity: number
+          sale_date?: string
+          sale_price: number
+          total_amount: number
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          product_id?: string
+          quantity?: number
+          sale_date?: string
+          sale_price?: number
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_records_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          id: string
+          material_id: string | null
+          movement_type: string
+          notes: string | null
+          product_id: string | null
+          quantity: number
+          reference_id: string | null
+          reference_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          material_id?: string | null
+          movement_type: string
+          notes?: string | null
+          product_id?: string | null
+          quantity: number
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          material_id?: string | null
+          movement_type?: string
+          notes?: string | null
+          product_id?: string | null
+          quantity?: number
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "raw_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +273,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      material_unit: "kg" | "pieces" | "sacks" | "liters" | "grams"
+      product_size: "100g" | "250g" | "500g" | "1kg" | "2kg"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +389,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      material_unit: ["kg", "pieces", "sacks", "liters", "grams"],
+      product_size: ["100g", "250g", "500g", "1kg", "2kg"],
+    },
   },
 } as const

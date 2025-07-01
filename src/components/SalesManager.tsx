@@ -7,24 +7,18 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShoppingCart, Plus, Minus, DollarSign } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Product, SaleRecord } from "@/pages/Index";
+import { useProducts } from "@/hooks/useProducts";
+import { useSales } from "@/hooks/useSales";
 import { toast } from "@/hooks/use-toast";
 
 interface SalesManagerProps {
-  products: Product[];
-  setProducts: (products: Product[]) => void;
-  salesRecords: SaleRecord[];
-  setSalesRecords: (records: SaleRecord[]) => void;
   language: 'en' | 'ar';
 }
 
-export const SalesManager = ({ 
-  products, 
-  setProducts,
-  salesRecords,
-  setSalesRecords,
-  language 
-}: SalesManagerProps) => {
+export const SalesManager = ({ language }: SalesManagerProps) => {
+  const { products, refetch: refetchProducts } = useProducts();
+  const { salesRecords, recordSale } = useSales();
+  
   const [isSaleDialogOpen, setIsSaleDialogOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [saleQuantity, setSaleQuantity] = useState(1);
@@ -54,6 +48,7 @@ export const SalesManager = ({
       to: "to",
       totalSales: "Total Sales",
       todaySales: "Today's Sales",
+      bestSelling: "Best Selling Product",
       currency: "$"
     },
     ar: {
@@ -78,17 +73,17 @@ export const SalesManager = ({
       to: "إلى",
       totalSales: "إجمالي المبيعات",
       todaySales: "مبيعات اليوم",
+      bestSelling: "المنتج الأكثر مبيعاً",
       currency: "ريال"
     }
   };
 
   const t = translations[language];
 
-  const getSelectedProduct = () => products.find(p => p.id === selectedProductId);
+  const selectedProduct = products.find(p => p.id === selectedProductId);
   
   const canSell = () => {
-    const product = getSelectedProduct();
-    return product && product.currentStock >= saleQuantity;
+    return selectedProduct && selectedProduct.current_stock >= saleQuantity;
   };
 
   const getTotalPrice = () => salePrice * saleQuantity;
@@ -96,62 +91,67 @@ export const SalesManager = ({
   const getTodaySales = () => {
     const today = new Date();
     return salesRecords
-      .filter(sale => sale.date.toDateString() === today.toDateString())
-      .reduce((total, sale) => total + sale.price, 0);
+      .filter(sale => new Date(sale.sale_date).toDateString() === today.toDateString())
+      .reduce((total, sale) => total + sale.total_amount, 0);
   };
 
   const getTotalSalesValue = () => {
-    return salesRecords.reduce((total, sale) => total + sale.price, 0);
+    return salesRecords.reduce((total, sale) => total + sale.total_amount, 0);
   };
 
-  const recordSale = () => {
-    if (!selectedProductId || !canSell() || !customerName.trim()) {
+  const getBestSellingProduct = () => {
+    const productSales = salesRecords.reduce((acc, sale) => {
+      acc[sale.product_id] = (acc[sale.product_id] || 0) + sale.quantity;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const bestProductId = Object.entries(productSales)
+      .sort(([,a], [,b]) => b - a)[0]?.[0];
+    
+    const bestProduct = products.find(p => p.id === bestProductId);
+    return bestProduct ? {
+      product: bestProduct,
+      totalSold: productSales[bestProductId]
+    } : null;
+  };
+
+  const handleRecordSale = async () => {
+    if (!selectedProductId || !canSell() || !customerName.trim() || salePrice <= 0) {
       toast({
         title: language === 'en' ? "Error" : "خطأ",
         description: !customerName.trim() 
           ? (language === 'en' ? "Please enter customer name" : "يرجى إدخال اسم العميل")
+          : salePrice <= 0
+          ? (language === 'en' ? "Please enter a valid price" : "يرجى إدخال سعر صحيح")
           : t.insufficientStock,
         variant: "destructive"
       });
       return;
     }
 
-    // Update product stock
-    const updatedProducts = products.map(product => {
-      if (product.id === selectedProductId) {
-        return {
-          ...product,
-          currentStock: product.currentStock - saleQuantity
-        };
-      }
-      return product;
-    });
+    try {
+      await recordSale(selectedProductId, saleQuantity, customerName.trim(), salePrice);
+      
+      // Refresh products data
+      refetchProducts();
+      
+      // Reset form
+      setSelectedProductId('');
+      setSaleQuantity(1);
+      setCustomerName('');
+      setSalePrice(0);
+      setIsSaleDialogOpen(false);
 
-    // Create sale record
-    const saleRecord: SaleRecord = {
-      id: Date.now().toString(),
-      productId: selectedProductId,
-      quantity: saleQuantity,
-      customerName: customerName.trim(),
-      date: new Date(),
-      price: getTotalPrice()
-    };
-
-    setProducts(updatedProducts);
-    setSalesRecords([saleRecord, ...salesRecords]);
-    
-    // Reset form
-    setSelectedProductId('');
-    setSaleQuantity(1);
-    setCustomerName('');
-    setSalePrice(0);
-    setIsSaleDialogOpen(false);
-
-    toast({
-      title: language === 'en' ? "Success" : "نجح",
-      description: t.saleRecorded
-    });
+      toast({
+        title: language === 'en' ? "Success" : "نجح",
+        description: t.saleRecorded
+      });
+    } catch (error) {
+      // Error handling is done in the hook
+    }
   };
+
+  const bestSelling = getBestSellingProduct();
 
   return (
     <div className="space-y-6">
@@ -183,16 +183,22 @@ export const SalesManager = ({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>{t.selectProduct}</Label>
-                    <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                    <Select value={selectedProductId} onValueChange={(value) => {
+                      setSelectedProductId(value);
+                      const product = products.find(p => p.id === value);
+                      if (product?.selling_price) {
+                        setSalePrice(product.selling_price);
+                      }
+                    }}>
                       <SelectTrigger>
                         <SelectValue placeholder={t.selectProduct} />
                       </SelectTrigger>
                       <SelectContent>
                         {products.map(product => (
                           <SelectItem key={product.id} value={product.id}>
-                            {language === 'en' ? product.name : product.nameAr} 
+                            {language === 'en' ? product.name : product.name_ar} 
                             <span className="text-gray-500 ml-2">
-                              ({product.currentStock} {language === 'en' ? 'available' : 'متوفر'})
+                              ({product.current_stock} {language === 'en' ? 'available' : 'متوفر'})
                             </span>
                           </SelectItem>
                         ))}
@@ -266,13 +272,13 @@ export const SalesManager = ({
                   }`}>
                     <div className="flex justify-between items-center">
                       <span className="font-medium">
-                        {language === 'en' ? getSelectedProduct()?.name : getSelectedProduct()?.nameAr}
+                        {language === 'en' ? selectedProduct?.name : selectedProduct?.name_ar}
                       </span>
                       <div className="text-right">
                         <div className="text-sm">
                           <span className="text-gray-600">{t.availableStock}: </span>
                           <span className={canSell() ? 'text-green-600' : 'text-red-600'}>
-                            {getSelectedProduct()?.currentStock}
+                            {selectedProduct?.current_stock}
                           </span>
                         </div>
                       </div>
@@ -287,8 +293,8 @@ export const SalesManager = ({
 
                 <div className="flex space-x-2">
                   <Button 
-                    onClick={recordSale} 
-                    disabled={!canSell() || !selectedProductId || !customerName.trim()}
+                    onClick={handleRecordSale} 
+                    disabled={!canSell() || !selectedProductId || !customerName.trim() || salePrice <= 0}
                     className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300"
                   >
                     {t.sell}
@@ -320,7 +326,7 @@ export const SalesManager = ({
             <div className="text-sm text-gray-600">
               {salesRecords.filter(sale => {
                 const today = new Date();
-                return sale.date.toDateString() === today.toDateString();
+                return new Date(sale.sale_date).toDateString() === today.toDateString();
               }).length} {language === 'en' ? 'transactions' : 'معاملة'}
             </div>
           </CardContent>
@@ -342,36 +348,18 @@ export const SalesManager = ({
 
         <Card className="border-amber-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-amber-900">
-              {language === 'en' ? 'Best Selling Product' : 'المنتج الأكثر مبيعاً'}
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-amber-900">{t.bestSelling}</CardTitle>
           </CardHeader>
           <CardContent>
-            {salesRecords.length > 0 ? (
-              (() => {
-                const productSales = salesRecords.reduce((acc, sale) => {
-                  acc[sale.productId] = (acc[sale.productId] || 0) + sale.quantity;
-                  return acc;
-                }, {} as Record<string, number>);
-                
-                const bestProductId = Object.entries(productSales)
-                  .sort(([,a], [,b]) => b - a)[0]?.[0];
-                
-                const bestProduct = products.find(p => p.id === bestProductId);
-                
-                return bestProduct ? (
-                  <>
-                    <div className="text-lg font-bold text-amber-700">
-                      {language === 'en' ? bestProduct.name : bestProduct.nameAr}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {productSales[bestProductId]} {t.units} {t.sold}
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-gray-500">-</div>
-                );
-              })()
+            {bestSelling ? (
+              <>
+                <div className="text-lg font-bold text-amber-700">
+                  {language === 'en' ? bestSelling.product.name : bestSelling.product.name_ar}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {bestSelling.totalSold} {t.units} {t.sold}
+                </div>
+              </>
             ) : (
               <div className="text-gray-500">-</div>
             )}
@@ -390,24 +378,24 @@ export const SalesManager = ({
           ) : (
             <div className="space-y-4">
               {salesRecords.slice(0, 10).map((record) => {
-                const product = products.find(p => p.id === record.productId);
+                const product = products.find(p => p.id === record.product_id);
                 return (
                   <div key={record.id} className="flex justify-between items-center p-4 bg-amber-50 rounded-lg">
                     <div>
                       <div className="font-medium text-amber-900">
-                        {language === 'en' ? product?.name : product?.nameAr}
+                        {language === 'en' ? product?.name : product?.name_ar}
                       </div>
                       <div className="text-sm text-gray-600">
-                        {t.sold} {record.quantity} {t.units} {t.to} {record.customerName}
+                        {t.sold} {record.quantity} {t.units} {t.to} {record.customer_name}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {record.date.toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US')} - 
-                        {record.date.toLocaleTimeString(language === 'ar' ? 'ar-SA' : 'en-US')}
+                        {new Date(record.sale_date).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US')} - 
+                        {new Date(record.sale_date).toLocaleTimeString(language === 'ar' ? 'ar-SA' : 'en-US')}
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="font-bold text-amber-700">
-                        {t.currency}{record.price.toFixed(2)}
+                        {t.currency}{record.total_amount.toFixed(2)}
                       </div>
                     </div>
                   </div>

@@ -2,7 +2,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Package } from "lucide-react";
-import { RawMaterial, Product } from "@/pages/Index";
+import { RawMaterial } from "@/hooks/useRawMaterials";
+import { Product } from "@/hooks/useProducts";
 
 interface StockAlertsPanelProps {
   lowStockMaterials: RawMaterial[];
@@ -66,14 +67,14 @@ export const StockAlertsPanel = ({
                     <div className="flex justify-between items-center">
                       <div>
                         <span className="font-medium text-gray-900">
-                          {language === 'en' ? material.name : material.nameAr}
+                          {language === 'en' ? material.name : material.name_ar}
                         </span>
                         <span className="text-sm text-gray-500 ml-2">({material.unit})</span>
                       </div>
                       <div className="text-right">
                         <div className="text-sm">
-                          <span className="text-red-600 font-semibold">{material.currentStock}</span>
-                          <span className="text-gray-500"> / {material.minThreshold}</span>
+                          <span className="text-red-600 font-semibold">{material.current_stock}</span>
+                          <span className="text-gray-500"> / {material.min_threshold}</span>
                         </div>
                       </div>
                     </div>
@@ -96,14 +97,14 @@ export const StockAlertsPanel = ({
                     <div className="flex justify-between items-center">
                       <div>
                         <span className="font-medium text-gray-900">
-                          {language === 'en' ? product.name : product.nameAr}
+                          {language === 'en' ? product.name : product.name_ar}
                         </span>
                         <span className="text-sm text-gray-500 ml-2">({product.size})</span>
                       </div>
                       <div className="text-right">
                         <div className="text-sm">
-                          <span className="text-red-600 font-semibold">{product.currentStock}</span>
-                          <span className="text-gray-500"> / {product.minThreshold}</span>
+                          <span className="text-red-600 font-semibold">{product.current_stock}</span>
+                          <span className="text-gray-500"> / {product.min_threshold}</span>
                         </div>
                       </div>
                     </div>
