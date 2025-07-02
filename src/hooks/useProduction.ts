@@ -47,7 +47,8 @@ export const useProduction = () => {
   const recordProduction = async (
     productId: string,
     quantity: number,
-    materials: ProductionMaterial[]
+    materials: ProductionMaterial[],
+    productionDate?: string
   ) => {
     try {
       // Start a transaction
@@ -56,7 +57,7 @@ export const useProduction = () => {
         .insert([{
           product_id: productId,
           quantity,
-          production_date: new Date().toISOString()
+          production_date: productionDate || new Date().toISOString()
         }])
         .select()
         .single();

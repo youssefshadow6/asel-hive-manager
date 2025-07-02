@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Plus, Minus, DollarSign } from "lucide-react";
+import { ShoppingCart, Plus, Minus, DollarSign, Calendar } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useProducts } from "@/hooks/useProducts";
 import { useSales } from "@/hooks/useSales";
@@ -24,6 +24,8 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
   const [saleQuantity, setSaleQuantity] = useState(1);
   const [customerName, setCustomerName] = useState('');
   const [salePrice, setSalePrice] = useState(0);
+  const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
 
   const translations = {
     en: {
@@ -33,6 +35,7 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       quantity: "Quantity Sold",
       customerName: "Customer Name",
       price: "Price per Unit",
+      saleDate: "Sale Date",
       totalPrice: "Total Price",
       currentStock: "Current Stock",
       availableStock: "Available Stock",
@@ -42,6 +45,8 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       saleRecorded: "Sale recorded successfully",
       insufficientStock: "Insufficient stock for this sale",
       recentSales: "Recent Sales",
+      salesByDate: "Sales by Date",
+      filterByDate: "Filter by Date",
       noSales: "No sales records yet",
       sold: "Sold",
       units: "units",
@@ -49,7 +54,10 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       totalSales: "Total Sales",
       todaySales: "Today's Sales",
       bestSelling: "Best Selling Product",
-      currency: "$"
+      currency: "$",
+      salesSummary: "Sales Summary (Past Year)",
+      totalUnits: "Total Units",
+      totalRevenue: "Total Revenue"
     },
     ar: {
       sales: "إدارة المبيعات",
@@ -58,6 +66,7 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       quantity: "الكمية المباعة",
       customerName: "اسم العميل",
       price: "السعر للوحدة",
+      saleDate: "تاريخ البيع",
       totalPrice: "إجمالي السعر",
       currentStock: "المخزون الحالي",
       availableStock: "المخزون المتاح",
@@ -67,6 +76,8 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       saleRecorded: "تم تسجيل البيع بنجاح",
       insufficientStock: "مخزون غير كاف لهذا البيع",
       recentSales: "المبيعات الأخيرة",
+      salesByDate: "المبيعات حسب التاريخ",
+      filterByDate: "فلترة حسب التاريخ",
       noSales: "لا توجد سجلات مبيعات بعد",
       sold: "تم بيع",
       units: "وحدة",
@@ -74,7 +85,10 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       totalSales: "إجمالي المبيعات",
       todaySales: "مبيعات اليوم",
       bestSelling: "المنتج الأكثر مبيعاً",
-      currency: "ريال"
+      currency: "ريال",
+      salesSummary: "ملخص المبيعات (العام الماضي)",
+      totalUnits: "إجمالي الوحدات",
+      totalRevenue: "إجمالي الإيرادات"
     }
   };
 
@@ -87,6 +101,12 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
   };
 
   const getTotalPrice = () => salePrice * saleQuantity;
+
+  const getFilteredSales = () => {
+    return salesRecords.filter(sale => 
+      new Date(sale.sale_date).toDateString() === new Date(filterDate).toDateString()
+    );
+  };
 
   const getTodaySales = () => {
     const today = new Date();
@@ -115,6 +135,32 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
     } : null;
   };
 
+  const getYearlySalesSummary = () => {
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    
+    const yearSales = salesRecords.filter(sale => 
+      new Date(sale.sale_date) >= oneYearAgo
+    );
+
+    const summary = yearSales.reduce((acc, sale) => {
+      const productId = sale.product_id;
+      if (!acc[productId]) {
+        const product = products.find(p => p.id === productId);
+        acc[productId] = {
+          product,
+          totalUnits: 0,
+          totalRevenue: 0
+        };
+      }
+      acc[productId].totalUnits += sale.quantity;
+      acc[productId].totalRevenue += sale.total_amount;
+      return acc;
+    }, {} as Record<string, any>);
+
+    return Object.values(summary);
+  };
+
   const handleRecordSale = async () => {
     if (!selectedProductId || !canSell() || !customerName.trim() || salePrice <= 0) {
       toast({
@@ -130,7 +176,7 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
     }
 
     try {
-      await recordSale(selectedProductId, saleQuantity, customerName.trim(), salePrice);
+      await recordSale(selectedProductId, saleQuantity, customerName.trim(), salePrice, saleDate);
       
       // Refresh products data
       refetchProducts();
@@ -140,6 +186,7 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       setSaleQuantity(1);
       setCustomerName('');
       setSalePrice(0);
+      setSaleDate(new Date().toISOString().split('T')[0]);
       setIsSaleDialogOpen(false);
 
       toast({
@@ -152,6 +199,8 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
   };
 
   const bestSelling = getBestSellingProduct();
+  const filteredSales = getFilteredSales();
+  const yearlySummary = getYearlySalesSummary();
 
   return (
     <div className="space-y-6">
@@ -215,8 +264,8 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
                   </div>
                 </div>
 
-                {/* Quantity and Price */}
-                <div className="grid grid-cols-3 gap-4">
+                {/* Quantity, Price, and Date */}
+                <div className="grid grid-cols-4 gap-4">
                   <div>
                     <Label>{t.quantity}</Label>
                     <div className="flex items-center space-x-2">
@@ -252,6 +301,14 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
                       placeholder="0.00"
                       min="0"
                       step="0.01"
+                    />
+                  </div>
+                  <div>
+                    <Label>{t.saleDate}</Label>
+                    <Input
+                      type="date"
+                      value={saleDate}
+                      onChange={(e) => setSaleDate(e.target.value)}
                     />
                   </div>
                   <div>
@@ -367,20 +424,39 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
         </Card>
       </div>
 
-      {/* Recent Sales Records */}
+      {/* Sales by Date Filter */}
       <Card className="border-amber-200">
         <CardHeader>
-          <CardTitle className="text-amber-900">{t.recentSales}</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-amber-900">{t.salesByDate}</CardTitle>
+            <div className="flex items-center space-x-2">
+              <Calendar className="w-4 h-4 text-amber-600" />
+              <Input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="w-40"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {salesRecords.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">{t.noSales}</p>
+          {filteredSales.length === 0 ? (
+            <p className="text-gray-500 text-center py-4">
+              {language === 'en' ? 'No sales for this date' : 'لا توجد مبيعات في هذا التاريخ'}
+            </p>
           ) : (
-            <div className="space-y-4">
-              {salesRecords.slice(0, 10).map((record) => {
+            <div className="space-y-3">
+              <div className="font-medium text-amber-900">
+                {language === 'en' ? 'Total for' : 'الإجمالي لـ'} {new Date(filterDate).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US')}: 
+                <span className="ml-2 text-amber-700">
+                  {t.currency}{filteredSales.reduce((sum, sale) => sum + sale.total_amount, 0).toFixed(2)}
+                </span>
+              </div>
+              {filteredSales.map((record) => {
                 const product = products.find(p => p.id === record.product_id);
                 return (
-                  <div key={record.id} className="flex justify-between items-center p-4 bg-amber-50 rounded-lg">
+                  <div key={record.id} className="flex justify-between items-center p-3 bg-amber-50 rounded-lg">
                     <div>
                       <div className="font-medium text-amber-900">
                         {language === 'en' ? product?.name : product?.name_ar}
@@ -388,19 +464,48 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
                       <div className="text-sm text-gray-600">
                         {t.sold} {record.quantity} {t.units} {t.to} {record.customer_name}
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {new Date(record.sale_date).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US')} - 
-                        {new Date(record.sale_date).toLocaleTimeString(language === 'ar' ? 'ar-SA' : 'en-US')}
-                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-bold text-amber-700">
-                        {t.currency}{record.total_amount.toFixed(2)}
-                      </div>
+                    <div className="font-bold text-amber-700">
+                      {t.currency}{record.total_amount.toFixed(2)}
                     </div>
                   </div>
                 );
               })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Yearly Sales Summary */}
+      <Card className="border-amber-200">
+        <CardHeader>
+          <CardTitle className="text-amber-900">{t.salesSummary}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {yearlySummary.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">{t.noSales}</p>
+          ) : (
+            <div className="space-y-4">
+              {yearlySummary.map((summary, index) => (
+                <div key={index} className="flex justify-between items-center p-4 bg-amber-50 rounded-lg">
+                  <div>
+                    <div className="font-medium text-amber-900">
+                      {language === 'en' ? summary.product?.name : summary.product?.name_ar}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {t.totalUnits}: {summary.totalUnits}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-amber-700">
+                      {t.currency}{summary.totalRevenue.toFixed(2)}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {t.totalRevenue}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

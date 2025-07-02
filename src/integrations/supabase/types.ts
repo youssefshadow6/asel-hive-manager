@@ -9,6 +9,48 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      product_bom: {
+        Row: {
+          created_at: string
+          id: string
+          material_id: string
+          product_id: string
+          quantity_per_unit: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          material_id: string
+          product_id: string
+          quantity_per_unit: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          material_id?: string
+          product_id?: string
+          quantity_per_unit?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_bom_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "raw_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_bom_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_materials: {
         Row: {
           cost_at_time: number | null

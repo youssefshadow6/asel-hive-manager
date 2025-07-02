@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Package, ShoppingCart, Factory, Bell, BarChart3 } from "lucide-react";
 import { RawMaterialsManager } from "@/components/RawMaterialsManager";
+import { ProductCatalogManager } from "@/components/ProductCatalogManager";
 import { ProductionManager } from "@/components/ProductionManager";
 import { SalesManager } from "@/components/SalesManager";
 import { StockAlertsPanel } from "@/components/StockAlertsPanel";
@@ -29,9 +30,10 @@ const Index = () => {
 
   const translations = {
     en: {
-      title: "Honey & Herbs Business Manager",
+      title: "مدرار Business Manager",
       dashboard: "Dashboard",
       rawMaterials: "Raw Materials",
+      productCatalog: "Product Catalog",
       production: "Production",
       sales: "Sales",
       currentStock: "Current Stock",
@@ -45,9 +47,10 @@ const Index = () => {
       loading: "Loading..."
     },
     ar: {
-      title: "نظام إدارة أعمال العسل والأعشاب",
+      title: "نظام إدارة أعمال مدرار",
       dashboard: "لوحة التحكم",
       rawMaterials: "المواد الخام",
+      productCatalog: "كتالوج المنتجات",
       production: "الإنتاج",
       sales: "المبيعات",
       currentStock: "المخزون الحالي",
@@ -118,6 +121,7 @@ const Index = () => {
             {[
               { key: 'dashboard', label: t.dashboard, icon: BarChart3 },
               { key: 'materials', label: t.rawMaterials, icon: Package },
+              { key: 'catalog', label: t.productCatalog, icon: Factory },
               { key: 'production', label: t.production, icon: Factory },
               { key: 'sales', label: t.sales, icon: ShoppingCart },
             ].map(({ key, label, icon: Icon }) => (
@@ -270,6 +274,10 @@ const Index = () => {
 
         {activeTab === 'materials' && (
           <RawMaterialsManager language={language} />
+        )}
+
+        {activeTab === 'catalog' && (
+          <ProductCatalogManager language={language} />
         )}
 
         {activeTab === 'production' && (

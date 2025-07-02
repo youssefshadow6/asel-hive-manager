@@ -45,7 +45,8 @@ export const useSales = () => {
     productId: string,
     quantity: number,
     customerName: string,
-    salePrice: number
+    salePrice: number,
+    saleDate?: string
   ) => {
     try {
       const totalAmount = quantity * salePrice;
@@ -59,7 +60,7 @@ export const useSales = () => {
           customer_name: customerName,
           sale_price: salePrice,
           total_amount: totalAmount,
-          sale_date: new Date().toISOString()
+          sale_date: saleDate || new Date().toISOString()
         }])
         .select()
         .single();

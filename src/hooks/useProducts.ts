@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -34,7 +33,34 @@ export const useProducts = () => {
     }
   };
 
+  const addProduct = async (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .insert([product])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setProducts(prev => [...prev, data]);
+      return data;
+    } catch (error) {
+      console.error('Error adding product:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to add product',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+
   const updateProduct = async (id: string, updates: ProductUpdate) => {
+    // Handle new product creation
+    if (id === 'new') {
+      return addProduct(updates as any);
+    }
+    
     try {
       const { data, error } = await supabase
         .from('products')
@@ -64,6 +90,7 @@ export const useProducts = () => {
   return {
     products,
     loading,
+    addProduct,
     updateProduct,
     refetch: fetchProducts
   };
