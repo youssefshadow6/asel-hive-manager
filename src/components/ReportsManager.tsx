@@ -225,13 +225,21 @@ export const ReportsManager = ({ language }: ReportsManagerProps) => {
             <p className="text-gray-500 dark:text-gray-400 text-center py-8">{t.noData}</p>
           ) : (
             <div className="space-y-3">
-              {[...filteredSales.slice(0, 5), ...filteredProduction.slice(0, 5)]
-                .sort((a, b) => new Date(b.sale_date || b.production_date).getTime() - new Date(a.sale_date || a.production_date).getTime())
+              {/* Combine and sort records by date */}
+              {[
+                ...filteredSales.map(sale => ({ ...sale, recordType: 'sale' as const })),
+                ...filteredProduction.map(prod => ({ ...prod, recordType: 'production' as const }))
+              ]
+                .sort((a, b) => {
+                  const dateA = a.recordType === 'sale' ? a.sale_date : a.production_date;
+                  const dateB = b.recordType === 'sale' ? b.sale_date : b.production_date;
+                  return new Date(dateB).getTime() - new Date(dateA).getTime();
+                })
                 .slice(0, 10)
                 .map((record, index) => {
-                  const isSale = 'customer_name' in record;
                   const product = products.find(p => p.id === record.product_id);
-                  const date = isSale ? record.sale_date : record.production_date;
+                  const date = record.recordType === 'sale' ? record.sale_date : record.production_date;
+                  const isSale = record.recordType === 'sale';
                   
                   return (
                     <div key={index} className="flex justify-between items-center p-3 bg-amber-50 dark:bg-gray-700 rounded-lg">
