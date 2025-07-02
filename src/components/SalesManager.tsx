@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useProducts } from "@/hooks/useProducts";
 import { useSales } from "@/hooks/useSales";
 import { toast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/utils/currency";
 
 interface SalesManagerProps {
   language: 'en' | 'ar';
@@ -54,10 +54,12 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       totalSales: "Total Sales",
       todaySales: "Today's Sales",
       bestSelling: "Best Selling Product",
-      currency: "$",
+      currency: "EGP",
       salesSummary: "Sales Summary (Past Year)",
       totalUnits: "Total Units",
-      totalRevenue: "Total Revenue"
+      totalRevenue: "Total Revenue",
+      manualPrice: "Custom Price per Unit",
+      suggestedPrice: "Suggested Price"
     },
     ar: {
       sales: "إدارة المبيعات",
@@ -85,10 +87,12 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       totalSales: "إجمالي المبيعات",
       todaySales: "مبيعات اليوم",
       bestSelling: "المنتج الأكثر مبيعاً",
-      currency: "ريال",
+      currency: "ج.م",
       salesSummary: "ملخص المبيعات (العام الماضي)",
       totalUnits: "إجمالي الوحدات",
-      totalRevenue: "إجمالي الإيرادات"
+      totalRevenue: "إجمالي الإيرادات",
+      manualPrice: "سعر مخصص لكل وحدة",
+      suggestedPrice: "السعر المقترح"
     }
   };
 
@@ -203,35 +207,35 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
   const yearlySummary = getYearlySalesSummary();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 dark:text-white">
       {/* Header with Sales Stats */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-amber-900">{t.sales}</h2>
+        <h2 className="text-2xl font-bold text-amber-900 dark:text-amber-100">{t.sales}</h2>
         
         <div className="flex items-center space-x-4">
           <div className="text-right">
-            <div className="text-sm text-gray-600">{t.todaySales}</div>
-            <div className="font-bold text-amber-700">
-              {t.currency}{getTodaySales().toFixed(2)}
+            <div className="text-sm text-gray-600 dark:text-gray-400">{t.todaySales}</div>
+            <div className="font-bold text-amber-700 dark:text-amber-300">
+              {formatCurrency(getTodaySales(), language)}
             </div>
           </div>
           
           <Dialog open={isSaleDialogOpen} onOpenChange={setIsSaleDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-amber-600 hover:bg-amber-700 text-white">
+              <Button className="bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-700 dark:hover:bg-amber-800">
                 <ShoppingCart className="w-4 h-4 mr-2" />
                 {t.recordSale}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl dark:bg-gray-800">
               <DialogHeader>
-                <DialogTitle>{t.recordSale}</DialogTitle>
+                <DialogTitle className="dark:text-white">{t.recordSale}</DialogTitle>
               </DialogHeader>
               <div className="space-y-6">
                 {/* Product and Customer Info */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>{t.selectProduct}</Label>
+                    <Label className="dark:text-gray-200">{t.selectProduct}</Label>
                     <Select value={selectedProductId} onValueChange={(value) => {
                       setSelectedProductId(value);
                       const product = products.find(p => p.id === value);
@@ -239,14 +243,14 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
                         setSalePrice(product.selling_price);
                       }
                     }}>
-                      <SelectTrigger>
+                      <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                         <SelectValue placeholder={t.selectProduct} />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="dark:bg-gray-700 dark:border-gray-600">
                         {products.map(product => (
-                          <SelectItem key={product.id} value={product.id}>
+                          <SelectItem key={product.id} value={product.id} className="dark:text-white dark:hover:bg-gray-600">
                             {language === 'en' ? product.name : product.name_ar} 
-                            <span className="text-gray-500 ml-2">
+                            <span className="text-gray-500 dark:text-gray-400 ml-2">
                               ({product.current_stock} {language === 'en' ? 'available' : 'متوفر'})
                             </span>
                           </SelectItem>
@@ -255,11 +259,12 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
                     </Select>
                   </div>
                   <div>
-                    <Label>{t.customerName}</Label>
+                    <Label className="dark:text-gray-200">{t.customerName}</Label>
                     <Input
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       placeholder={language === 'en' ? "Enter customer name" : "أدخل اسم العميل"}
+                      className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
                   </div>
                 </div>
@@ -267,12 +272,13 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
                 {/* Quantity, Price, and Date */}
                 <div className="grid grid-cols-4 gap-4">
                   <div>
-                    <Label>{t.quantity}</Label>
+                    <Label className="dark:text-gray-200">{t.quantity}</Label>
                     <div className="flex items-center space-x-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setSaleQuantity(Math.max(1, saleQuantity - 1))}
+                        className="dark:border-gray-600 dark:text-gray-200"
                       >
                         <Minus className="w-4 h-4" />
                       </Button>
@@ -280,20 +286,21 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
                         type="number"
                         value={saleQuantity}
                         onChange={(e) => setSaleQuantity(Math.max(1, Number(e.target.value)))}
-                        className="text-center"
+                        className="text-center dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         min="1"
                       />
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setSaleQuantity(saleQuantity + 1)}
+                        className="dark:border-gray-600 dark:text-gray-200"
                       >
                         <Plus className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
                   <div>
-                    <Label>{t.price}</Label>
+                    <Label className="dark:text-gray-200">{t.manualPrice}</Label>
                     <Input
                       type="number"
                       value={salePrice}
@@ -301,22 +308,28 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
                       placeholder="0.00"
                       min="0"
                       step="0.01"
+                      className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
+                    {selectedProduct?.selling_price && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {t.suggestedPrice}: {formatCurrency(selectedProduct.selling_price, language)}
+                      </div>
+                    )}
                   </div>
                   <div>
-                    <Label>{t.saleDate}</Label>
+                    <Label className="dark:text-gray-200">{t.saleDate}</Label>
                     <Input
                       type="date"
                       value={saleDate}
                       onChange={(e) => setSaleDate(e.target.value)}
+                      className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
                   </div>
                   <div>
-                    <Label>{t.totalPrice}</Label>
-                    <div className="flex items-center h-10 px-3 border rounded-md bg-gray-50">
-                      <DollarSign className="w-4 h-4 mr-1 text-gray-500" />
-                      <span className="font-semibold text-amber-700">
-                        {getTotalPrice().toFixed(2)}
+                    <Label className="dark:text-gray-200">{t.totalPrice}</Label>
+                    <div className="flex items-center h-10 px-3 border rounded-md bg-gray-50 dark:bg-gray-700 dark:border-gray-600">
+                      <span className="font-semibold text-amber-700 dark:text-amber-300">
+                        {formatCurrency(getTotalPrice(), language)}
                       </span>
                     </div>
                   </div>
@@ -325,23 +338,23 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
                 {/* Stock Validation */}
                 {selectedProductId && (
                   <div className={`p-3 rounded-lg border ${
-                    canSell() ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                    canSell() ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
                   }`}>
                     <div className="flex justify-between items-center">
-                      <span className="font-medium">
+                      <span className="font-medium dark:text-white">
                         {language === 'en' ? selectedProduct?.name : selectedProduct?.name_ar}
                       </span>
                       <div className="text-right">
                         <div className="text-sm">
-                          <span className="text-gray-600">{t.availableStock}: </span>
-                          <span className={canSell() ? 'text-green-600' : 'text-red-600'}>
+                          <span className="text-gray-600 dark:text-gray-400">{t.availableStock}: </span>
+                          <span className={canSell() ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
                             {selectedProduct?.current_stock}
                           </span>
                         </div>
                       </div>
                     </div>
                     {!canSell() && (
-                      <div className="text-sm text-red-600 mt-1">
+                      <div className="text-sm text-red-600 dark:text-red-400 mt-1">
                         {t.insufficient}
                       </div>
                     )}
@@ -352,14 +365,14 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
                   <Button 
                     onClick={handleRecordSale} 
                     disabled={!canSell() || !selectedProductId || !customerName.trim() || salePrice <= 0}
-                    className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300"
+                    className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 dark:bg-amber-700 dark:hover:bg-amber-800"
                   >
                     {t.sell}
                   </Button>
                   <Button 
                     variant="outline" 
                     onClick={() => setIsSaleDialogOpen(false)} 
-                    className="flex-1"
+                    className="flex-1 dark:border-gray-600 dark:text-gray-200"
                   >
                     {t.cancel}
                   </Button>
@@ -372,15 +385,15 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
 
       {/* Sales Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-amber-200">
+        <Card className="border-amber-200 dark:border-amber-700 dark:bg-gray-800">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-amber-900">{t.todaySales}</CardTitle>
+            <CardTitle className="text-sm font-medium text-amber-900 dark:text-amber-100">{t.todaySales}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-700">
-              {t.currency}{getTodaySales().toFixed(2)}
+            <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+              {formatCurrency(getTodaySales(), language)}
             </div>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
               {salesRecords.filter(sale => {
                 const today = new Date();
                 return new Date(sale.sale_date).toDateString() === today.toDateString();
@@ -389,84 +402,84 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
           </CardContent>
         </Card>
 
-        <Card className="border-amber-200">
+        <Card className="border-amber-200 dark:border-amber-700 dark:bg-gray-800">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-amber-900">{t.totalSales}</CardTitle>
+            <CardTitle className="text-sm font-medium text-amber-900 dark:text-amber-100">{t.totalSales}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-700">
-              {t.currency}{getTotalSalesValue().toFixed(2)}
+            <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+              {formatCurrency(getTotalSalesValue(), language)}
             </div>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
               {salesRecords.length} {language === 'en' ? 'total transactions' : 'إجمالي المعاملات'}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-amber-200">
+        <Card className="border-amber-200 dark:border-amber-700 dark:bg-gray-800">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-amber-900">{t.bestSelling}</CardTitle>
+            <CardTitle className="text-sm font-medium text-amber-900 dark:text-amber-100">{t.bestSelling}</CardTitle>
           </CardHeader>
           <CardContent>
             {bestSelling ? (
               <>
-                <div className="text-lg font-bold text-amber-700">
+                <div className="text-lg font-bold text-amber-700 dark:text-amber-300">
                   {language === 'en' ? bestSelling.product.name : bestSelling.product.name_ar}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
                   {bestSelling.totalSold} {t.units} {t.sold}
                 </div>
               </>
             ) : (
-              <div className="text-gray-500">-</div>
+              <div className="text-gray-500 dark:text-gray-400">-</div>
             )}
           </CardContent>
         </Card>
       </div>
 
       {/* Sales by Date Filter */}
-      <Card className="border-amber-200">
+      <Card className="border-amber-200 dark:border-amber-700 dark:bg-gray-800">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle className="text-amber-900">{t.salesByDate}</CardTitle>
+            <CardTitle className="text-amber-900 dark:text-amber-100">{t.salesByDate}</CardTitle>
             <div className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4 text-amber-600" />
+              <Calendar className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               <Input
                 type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
-                className="w-40"
+                className="w-40 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
           </div>
         </CardHeader>
         <CardContent>
           {filteredSales.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">
+            <p className="text-gray-500 dark:text-gray-400 text-center py-4">
               {language === 'en' ? 'No sales for this date' : 'لا توجد مبيعات في هذا التاريخ'}
             </p>
           ) : (
             <div className="space-y-3">
-              <div className="font-medium text-amber-900">
+              <div className="font-medium text-amber-900 dark:text-amber-100">
                 {language === 'en' ? 'Total for' : 'الإجمالي لـ'} {new Date(filterDate).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US')}: 
-                <span className="ml-2 text-amber-700">
-                  {t.currency}{filteredSales.reduce((sum, sale) => sum + sale.total_amount, 0).toFixed(2)}
+                <span className="ml-2 text-amber-700 dark:text-amber-300">
+                  {formatCurrency(filteredSales.reduce((sum, sale) => sum + sale.total_amount, 0), language)}
                 </span>
               </div>
               {filteredSales.map((record) => {
                 const product = products.find(p => p.id === record.product_id);
                 return (
-                  <div key={record.id} className="flex justify-between items-center p-3 bg-amber-50 rounded-lg">
+                  <div key={record.id} className="flex justify-between items-center p-3 bg-amber-50 dark:bg-gray-700 rounded-lg">
                     <div>
-                      <div className="font-medium text-amber-900">
+                      <div className="font-medium text-amber-900 dark:text-amber-100">
                         {language === 'en' ? product?.name : product?.name_ar}
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
                         {t.sold} {record.quantity} {t.units} {t.to} {record.customer_name}
                       </div>
                     </div>
-                    <div className="font-bold text-amber-700">
-                      {t.currency}{record.total_amount.toFixed(2)}
+                    <div className="font-bold text-amber-700 dark:text-amber-300">
+                      {formatCurrency(record.total_amount, language)}
                     </div>
                   </div>
                 );
@@ -477,30 +490,30 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       </Card>
 
       {/* Yearly Sales Summary */}
-      <Card className="border-amber-200">
+      <Card className="border-amber-200 dark:border-amber-700 dark:bg-gray-800">
         <CardHeader>
-          <CardTitle className="text-amber-900">{t.salesSummary}</CardTitle>
+          <CardTitle className="text-amber-900 dark:text-amber-100">{t.salesSummary}</CardTitle>
         </CardHeader>
         <CardContent>
           {yearlySummary.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">{t.noSales}</p>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-8">{t.noSales}</p>
           ) : (
             <div className="space-y-4">
               {yearlySummary.map((summary, index) => (
-                <div key={index} className="flex justify-between items-center p-4 bg-amber-50 rounded-lg">
+                <div key={index} className="flex justify-between items-center p-4 bg-amber-50 dark:bg-gray-700 rounded-lg">
                   <div>
-                    <div className="font-medium text-amber-900">
+                    <div className="font-medium text-amber-900 dark:text-amber-100">
                       {language === 'en' ? summary.product?.name : summary.product?.name_ar}
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
                       {t.totalUnits}: {summary.totalUnits}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-amber-700">
-                      {t.currency}{summary.totalRevenue.toFixed(2)}
+                    <div className="font-bold text-amber-700 dark:text-amber-300">
+                      {formatCurrency(summary.totalRevenue, language)}
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
                       {t.totalRevenue}
                     </div>
                   </div>

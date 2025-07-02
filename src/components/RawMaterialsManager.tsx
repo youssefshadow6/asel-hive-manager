@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useRawMaterials } from "@/hooks/useRawMaterials";
 import { toast } from "@/hooks/use-toast";
 import type { Database } from '@/integrations/supabase/types';
+import { formatCurrency } from "@/utils/currency";
 
 interface RawMaterialsManagerProps {
   language: 'en' | 'ar';
@@ -19,7 +20,7 @@ type MaterialUnit = Database['public']['Enums']['material_unit'];
 const materialUnits: MaterialUnit[] = ['kg', 'pieces', 'sacks', 'liters', 'grams'];
 
 export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
-  const { materials, loading, addMaterial, receiveMaterial } = useRawMaterials();
+  const { materials, loading, addMaterial, receiveMaterial, updateMaterial } = useRawMaterials();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isReceiveDialogOpen, setIsReceiveDialogOpen] = useState(false);
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
     supplier: ''
   });
   const [receiveQuantity, setReceiveQuantity] = useState(0);
+  const [receiveCost, setReceiveCost] = useState(0);
 
   const translations = {
     en: {
@@ -44,7 +46,7 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
       unit: "Unit",
       minThreshold: "Minimum Threshold",
       currentStock: "Current Stock",
-      costPerUnit: "Cost per Unit",
+      costPerUnit: "Cost per Unit (EGP)",
       supplier: "Supplier",
       lastReceived: "Last Received",
       lowStock: "Low Stock",
@@ -56,7 +58,9 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
       save: "Save",
       materialAdded: "Material added successfully",
       materialReceived: "Material received successfully",
-      loading: "Loading..."
+      loading: "Loading...",
+      receiveCost: "Cost per Unit for this batch",
+      totalCost: "Total Cost"
     },
     ar: {
       rawMaterials: "المواد الخام",
@@ -67,7 +71,7 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
       unit: "الوحدة",
       minThreshold: "الحد الأدنى",
       currentStock: "المخزون الحالي",
-      costPerUnit: "التكلفة لكل وحدة",
+      costPerUnit: "التكلفة لكل وحدة (ج.م)",
       supplier: "المورد",
       lastReceived: "آخر استلام",
       lowStock: "مخزون منخفض",
@@ -79,7 +83,9 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
       save: "حفظ",
       materialAdded: "تم إضافة المادة بنجاح",
       materialReceived: "تم استلام المادة بنجاح",
-      loading: "جاري التحميل..."
+      loading: "جاري التحميل...",
+      receiveCost: "التكلفة لكل وحدة لهذه الدفعة",
+      totalCost: "إجمالي التكلفة"
     }
   };
 
@@ -130,8 +136,24 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
     if (!selectedMaterialId || receiveQuantity <= 0) return;
 
     try {
-      await receiveMaterial(selectedMaterialId, receiveQuantity);
+      // Update the material with new average cost if provided
+      const material = materials.find(m => m.id === selectedMaterialId);
+      if (material && receiveCost > 0) {
+        const totalCurrentValue = material.current_stock * (material.cost_per_unit || 0);
+        const newBatchValue = receiveQuantity * receiveCost;
+        const newTotalStock = material.current_stock + receiveQuantity;
+        const newAverageCost = newTotalStock > 0 ? (totalCurrentValue + newBatchValue) / newTotalStock : receiveCost;
+        
+        await receiveMaterial(selectedMaterialId, receiveQuantity);
+        
+        // Update the cost per unit with the new average
+        await updateMaterial(selectedMaterialId, { cost_per_unit: newAverageCost });
+      } else {
+        await receiveMaterial(selectedMaterialId, receiveQuantity);
+      }
+      
       setReceiveQuantity(0);
+      setReceiveCost(0);
       setSelectedMaterialId(null);
       setIsReceiveDialogOpen(false);
       
@@ -221,6 +243,17 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
                   onChange={(e) => setNewMaterial({...newMaterial, current_stock: Number(e.target.value)})}
                 />
               </div>
+              <div>
+                <Label htmlFor="costPerUnit">{t.costPerUnit}</Label>
+                <Input
+                  id="costPerUnit"
+                  type="number"
+                  step="0.01"
+                  value={newMaterial.cost_per_unit}
+                  onChange={(e) => setNewMaterial({...newMaterial, cost_per_unit: Number(e.target.value)})}
+                  placeholder="0.00"
+                />
+              </div>
               <div className="flex space-x-2">
                 <Button onClick={handleAddMaterial} className="flex-1 bg-amber-600 hover:bg-amber-700">
                   {t.add}
@@ -265,8 +298,10 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">{t.minThreshold}:</span>
-                  <span className="text-sm">{material.min_threshold} {material.unit}</span>
+                  <span className="text-sm text-gray-600">{t.costPerUnit}:</span>
+                  <span className="text-sm">
+                    {formatCurrency(material.cost_per_unit || 0, language)}
+                  </span>
                 </div>
                 {material.last_received && (
                   <div className="flex justify-between">
@@ -320,6 +355,26 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
                 min="0"
               />
             </div>
+            <div>
+              <Label htmlFor="receiveCost">{t.receiveCost}</Label>
+              <Input
+                id="receiveCost"
+                type="number"
+                step="0.01"
+                value={receiveCost}
+                onChange={(e) => setReceiveCost(Number(e.target.value))}
+                placeholder="0.00"
+                min="0"
+              />
+            </div>
+            {receiveQuantity > 0 && receiveCost > 0 && (
+              <div className="p-3 bg-amber-50 rounded-lg">
+                <div className="text-sm text-gray-600">{t.totalCost}:</div>
+                <div className="font-bold text-amber-700">
+                  {formatCurrency(receiveQuantity * receiveCost, language)}
+                </div>
+              </div>
+            )}
             <div className="flex space-x-2">
               <Button onClick={handleReceiveMaterial} className="flex-1 bg-amber-600 hover:bg-amber-700">
                 {t.save}
