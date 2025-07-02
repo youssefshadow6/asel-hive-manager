@@ -2,19 +2,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import type { Database } from '@/integrations/supabase/types';
 
-export interface Product {
-  id: string;
-  name: string;
-  name_ar: string;
-  size: string;
-  current_stock: number;
-  min_threshold: number;
-  selling_price?: number;
-  production_cost?: number;
-  created_at: string;
-  updated_at: string;
-}
+type ProductRow = Database['public']['Tables']['products']['Row'];
+type ProductUpdate = Database['public']['Tables']['products']['Update'];
+
+export interface Product extends ProductRow {}
 
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -41,7 +34,7 @@ export const useProducts = () => {
     }
   };
 
-  const updateProduct = async (id: string, updates: Partial<Product>) => {
+  const updateProduct = async (id: string, updates: ProductUpdate) => {
     try {
       const { data, error } = await supabase
         .from('products')

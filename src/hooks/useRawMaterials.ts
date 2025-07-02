@@ -2,20 +2,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import type { Database } from '@/integrations/supabase/types';
 
-export interface RawMaterial {
-  id: string;
-  name: string;
-  name_ar: string;
-  unit: string;
-  current_stock: number;
-  min_threshold: number;
-  cost_per_unit?: number;
-  supplier?: string;
-  last_received?: string;
-  created_at: string;
-  updated_at: string;
-}
+type RawMaterialRow = Database['public']['Tables']['raw_materials']['Row'];
+type RawMaterialInsert = Database['public']['Tables']['raw_materials']['Insert'];
+type RawMaterialUpdate = Database['public']['Tables']['raw_materials']['Update'];
+
+export interface RawMaterial extends RawMaterialRow {}
 
 export const useRawMaterials = () => {
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
@@ -42,7 +35,7 @@ export const useRawMaterials = () => {
     }
   };
 
-  const addMaterial = async (material: Omit<RawMaterial, 'id' | 'created_at' | 'updated_at'>) => {
+  const addMaterial = async (material: RawMaterialInsert) => {
     try {
       const { data, error } = await supabase
         .from('raw_materials')
@@ -64,7 +57,7 @@ export const useRawMaterials = () => {
     }
   };
 
-  const updateMaterial = async (id: string, updates: Partial<RawMaterial>) => {
+  const updateMaterial = async (id: string, updates: RawMaterialUpdate) => {
     try {
       const { data, error } = await supabase
         .from('raw_materials')

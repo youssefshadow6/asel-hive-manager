@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,12 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRawMaterials } from "@/hooks/useRawMaterials";
 import { toast } from "@/hooks/use-toast";
+import type { Database } from '@/integrations/supabase/types';
 
 interface RawMaterialsManagerProps {
   language: 'en' | 'ar';
 }
 
-const materialUnits = ['kg', 'pieces', 'sacks', 'liters', 'grams'];
+type MaterialUnit = Database['public']['Enums']['material_unit'];
+const materialUnits: MaterialUnit[] = ['kg', 'pieces', 'sacks', 'liters', 'grams'];
 
 export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
   const { materials, loading, addMaterial, receiveMaterial } = useRawMaterials();
@@ -25,7 +26,7 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
   const [newMaterial, setNewMaterial] = useState({
     name: '',
     name_ar: '',
-    unit: 'kg',
+    unit: 'kg' as MaterialUnit,
     min_threshold: 0,
     current_stock: 0,
     cost_per_unit: 0,
@@ -100,7 +101,7 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
         name_ar: newMaterial.name_ar,
         unit: newMaterial.unit,
         current_stock: newMaterial.current_stock,
-        min_threshold: newMaterial.minThreshold,
+        min_threshold: newMaterial.min_threshold,
         cost_per_unit: newMaterial.cost_per_unit || 0,
         supplier: newMaterial.supplier
       });
@@ -191,7 +192,7 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
               </div>
               <div>
                 <Label htmlFor="unit">{t.unit}</Label>
-                <Select value={newMaterial.unit} onValueChange={(value) => setNewMaterial({...newMaterial, unit: value})}>
+                <Select value={newMaterial.unit} onValueChange={(value: MaterialUnit) => setNewMaterial({...newMaterial, unit: value})}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
