@@ -48,7 +48,8 @@ export const useProduction = () => {
     productId: string,
     quantity: number,
     materials: ProductionMaterial[],
-    productionDate?: string
+    productionDate?: string,
+    notes?: string
   ) => {
     try {
       // Start a transaction
@@ -57,7 +58,8 @@ export const useProduction = () => {
         .insert([{
           product_id: productId,
           quantity,
-          production_date: productionDate || new Date().toISOString()
+          production_date: productionDate || new Date().toISOString(),
+          notes: notes || null
         }])
         .select()
         .single();
