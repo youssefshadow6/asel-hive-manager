@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { AuthPage } from "@/components/auth/AuthPage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +21,7 @@ import { formatCurrency } from "@/utils/currency";
 import { formatGregorianDate } from "@/utils/dateUtils";
 
 const Index = () => {
+  const { user, loading } = useAuth();
   const [language, setLanguage] = useState<'en' | 'ar'>('en');
   const [activeTab, setActiveTab] = useState('dashboard');
   
@@ -87,6 +90,18 @@ const Index = () => {
   };
 
   const t = translations[language];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthPage language={language} />;
+  }
 
   if (materialsLoading || productsLoading) {
     return (
