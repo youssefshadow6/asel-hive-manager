@@ -269,9 +269,9 @@ export const ProductionManager = ({ language }: ProductionManagerProps) => {
                       <SelectValue placeholder={t.selectProduct} />
                     </SelectTrigger>
                     <SelectContent>
-                      {products.map(product => (
+                      {products.filter(product => product.id).map(product => (
                         <SelectItem key={product.id} value={product.id}>
-                          {language === 'en' ? product.name : product.name_ar} ({product.size})
+                          {language === 'en' ? product.name : product.name_ar} ({product.size || 'No size'})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -427,8 +427,8 @@ export const ProductionManager = ({ language }: ProductionManagerProps) => {
                   <SelectValue placeholder="All products" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All products</SelectItem>
-                  {products.map(product => (
+                  <SelectItem value="all-products">All products</SelectItem>
+                  {products.filter(product => product.id).map(product => (
                     <SelectItem key={product.id} value={product.id}>
                       {language === 'en' ? product.name : product.name_ar}
                     </SelectItem>
@@ -511,7 +511,7 @@ export const ProductionManager = ({ language }: ProductionManagerProps) => {
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="font-medium text-amber-900 dark:text-amber-100 text-lg">
-                          {productName} ({product?.size})
+                          {productName || 'Unknown Product'} ({product?.size || 'No size'})
                         </div>
                         <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                           {new Date(record.production_date).toLocaleDateString('en-CA')} - 
