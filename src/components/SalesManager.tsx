@@ -4,12 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Plus, Minus, DollarSign, Calendar } from "lucide-react";
+import { ShoppingCart, Plus, Minus, DollarSign, Calendar, Trash2, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useProducts } from "@/hooks/useProducts";
 import { useSales } from "@/hooks/useSales";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/utils/currency";
+import { formatGregorianDate } from "@/utils/dateUtils";
+import { InvoicePreview } from "@/components/InvoicePreview";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SalesManagerProps {
   language: 'en' | 'ar';
@@ -17,7 +21,7 @@ interface SalesManagerProps {
 
 export const SalesManager = ({ language }: SalesManagerProps) => {
   const { products, refetch: refetchProducts } = useProducts();
-  const { salesRecords, recordSale } = useSales();
+  const { salesRecords, recordSale, refetch: refetchSales } = useSales();
   
   const [isSaleDialogOpen, setIsSaleDialogOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -26,6 +30,43 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
   const [salePrice, setSalePrice] = useState(0);
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // Invoice state
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
+  const [currentInvoiceData, setCurrentInvoiceData] = useState<{
+    saleRecord: any;
+    product: any;
+  } | null>(null);
+
+  const deleteSaleRecord = async (saleId: string) => {
+    try {
+      const { error } = await supabase
+        .from('sales_records')
+        .delete()
+        .eq('id', saleId);
+
+      if (error) throw error;
+
+      refetchSales();
+      toast({
+        title: language === 'en' ? "Success" : "نجح",
+        description: language === 'en' ? "Sale record deleted successfully" : "تم حذف سجل البيع بنجاح"
+      });
+    } catch (error) {
+      console.error('Error deleting sale record:', error);
+      toast({
+        title: language === 'en' ? "Error" : "خطأ",
+        description: language === 'en' ? "Failed to delete sale record" : "فشل في حذف سجل البيع",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const showInvoice = (saleRecord: any) => {
+    const product = products.find(p => p.id === saleRecord.product_id);
+    setCurrentInvoiceData({ saleRecord, product });
+    setIsInvoiceOpen(true);
+  };
 
   const translations = {
     en: {
@@ -59,7 +100,11 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       totalUnits: "Total Units",
       totalRevenue: "Total Revenue",
       manualPrice: "Custom Price per Unit",
-      suggestedPrice: "Suggested Price"
+      suggestedPrice: "Suggested Price",
+      delete: "Delete",
+      confirmDelete: "Are you sure you want to delete this sale record?",
+      showInvoice: "Show Invoice",
+      actions: "Actions"
     },
     ar: {
       sales: "إدارة المبيعات",
@@ -92,7 +137,11 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       totalUnits: "إجمالي الوحدات",
       totalRevenue: "إجمالي الإيرادات",
       manualPrice: "سعر مخصص لكل وحدة",
-      suggestedPrice: "السعر المقترح"
+      suggestedPrice: "السعر المقترح",
+      delete: "حذف",
+      confirmDelete: "هل أنت متأكد من حذف سجل البيع هذا؟",
+      showInvoice: "عرض الفاتورة",
+      actions: "الإجراءات"
     }
   };
 
@@ -108,7 +157,7 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
 
   const getFilteredSales = () => {
     return salesRecords.filter(sale => 
-      new Date(sale.sale_date).toDateString() === new Date(filterDate).toDateString()
+      formatGregorianDate(sale.sale_date, 'en') === filterDate
     );
   };
 
@@ -180,10 +229,17 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
     }
 
     try {
-      await recordSale(selectedProductId, saleQuantity, customerName.trim(), salePrice, saleDate);
+      const saleRecord = await recordSale(selectedProductId, saleQuantity, customerName.trim(), salePrice, saleDate);
       
       // Refresh products data
       refetchProducts();
+      
+      // Show invoice after successful sale
+      const product = products.find(p => p.id === selectedProductId);
+      if (saleRecord && product) {
+        setCurrentInvoiceData({ saleRecord, product });
+        setIsInvoiceOpen(true);
+      }
       
       // Reset form
       setSelectedProductId('');
@@ -461,7 +517,7 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
           ) : (
             <div className="space-y-3">
               <div className="font-medium text-amber-900 dark:text-amber-100">
-                {language === 'en' ? 'Total for' : 'الإجمالي لـ'} {new Date(filterDate).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US')}: 
+                {language === 'en' ? 'Total for' : 'الإجمالي لـ'} {formatGregorianDate(filterDate, language)}: 
                 <span className="ml-2 text-amber-700 dark:text-amber-300">
                   {formatCurrency(filteredSales.reduce((sum, sale) => sum + sale.total_amount, 0), language)}
                 </span>
@@ -470,7 +526,7 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
                 const product = products.find(p => p.id === record.product_id);
                 return (
                   <div key={record.id} className="flex justify-between items-center p-3 bg-amber-50 dark:bg-gray-700 rounded-lg">
-                    <div>
+                    <div className="flex-1">
                       <div className="font-medium text-amber-900 dark:text-amber-100">
                         {language === 'en' ? product?.name : product?.name_ar}
                       </div>
@@ -478,8 +534,39 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
                         {t.sold} {record.quantity} {t.units} {t.to} {record.customer_name}
                       </div>
                     </div>
-                    <div className="font-bold text-amber-700 dark:text-amber-300">
-                      {formatCurrency(record.total_amount, language)}
+                    <div className="flex items-center space-x-2">
+                      <div className="font-bold text-amber-700 dark:text-amber-300">
+                        {formatCurrency(record.total_amount, language)}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => showInvoice(record)}
+                        className="p-2"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="destructive" className="p-2">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t.delete}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t.confirmDelete}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteSaleRecord(record.id)}>
+                              {t.delete}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 );
@@ -523,6 +610,15 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
           )}
         </CardContent>
       </Card>
+
+      {/* Invoice Preview */}
+      <InvoicePreview
+        isOpen={isInvoiceOpen}
+        onClose={() => setIsInvoiceOpen(false)}
+        saleRecord={currentInvoiceData?.saleRecord || null}
+        product={currentInvoiceData?.product || null}
+        language={language}
+      />
     </div>
   );
 };

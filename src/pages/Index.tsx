@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Package, ShoppingCart, Factory, Bell, BarChart3, FileText } from "lucide-react";
+import { Plus, Package, ShoppingCart, Factory, Bell, BarChart3, FileText, Trash2 } from "lucide-react";
 import { RawMaterialsManager } from "@/components/RawMaterialsManager";
 import { ProductCatalogManager } from "@/components/ProductCatalogManager";
 import { ProductionManager } from "@/components/ProductionManager";
@@ -10,11 +10,13 @@ import { SalesManager } from "@/components/SalesManager";
 import { StockAlertsPanel } from "@/components/StockAlertsPanel";
 import { ReportsManager } from "@/components/ReportsManager";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { DashboardChart } from "@/components/DashboardChart";
 import { useRawMaterials } from "@/hooks/useRawMaterials";
 import { useProducts } from "@/hooks/useProducts";
 import { useProduction } from "@/hooks/useProduction";
 import { useSales } from "@/hooks/useSales";
 import { formatCurrency } from "@/utils/currency";
+import { formatGregorianDate } from "@/utils/dateUtils";
 
 const Index = () => {
   const [language, setLanguage] = useState<'en' | 'ar'>('en');
@@ -29,6 +31,19 @@ const Index = () => {
   // Get low stock items
   const lowStockMaterials = rawMaterials.filter(material => material.current_stock <= material.min_threshold);
   const lowStockProducts = products.filter(product => product.current_stock <= product.min_threshold);
+
+  const handleNotificationClick = () => {
+    setActiveTab('dashboard');
+    // Scroll to alerts section if there are any
+    if (lowStockMaterials.length > 0 || lowStockProducts.length > 0) {
+      setTimeout(() => {
+        const alertsElement = document.getElementById('stock-alerts');
+        if (alertsElement) {
+          alertsElement.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  };
 
   const translations = {
     en: {
@@ -47,7 +62,8 @@ const Index = () => {
       recordProduction: "Record Production",
       recordSale: "Record Sale",
       viewReports: "View Reports",
-      loading: "Loading..."
+      loading: "Loading...",
+      salesOverTime: "Sales Over Time"
     },
     ar: {
       title: "نظام إدارة أعمال مدرار",
@@ -65,7 +81,8 @@ const Index = () => {
       recordProduction: "تسجيل إنتاج",
       recordSale: "تسجيل بيع",
       viewReports: "عرض التقارير",
-      loading: "جاري التحميل..."
+      loading: "جاري التحميل...",
+      salesOverTime: "المبيعات عبر الوقت"
     }
   };
 
@@ -98,12 +115,19 @@ const Index = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              {lowStockMaterials.length > 0 || lowStockProducts.length > 0 ? (
-                <Badge variant="destructive" className="flex items-center space-x-1">
-                  <Bell className="w-3 h-3" />
-                  <span>{lowStockMaterials.length + lowStockProducts.length}</span>
-                </Badge>
-              ) : null}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleNotificationClick}
+                className="relative"
+              >
+                <Bell className="w-5 h-5" />
+                {(lowStockMaterials.length > 0 || lowStockProducts.length > 0) && (
+                  <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center text-xs p-0">
+                    {lowStockMaterials.length + lowStockProducts.length}
+                  </Badge>
+                )}
+              </Button>
               
               <ThemeToggle />
               
@@ -155,11 +179,13 @@ const Index = () => {
           <div className="space-y-6">
             {/* Stock Alerts */}
             {(lowStockMaterials.length > 0 || lowStockProducts.length > 0) && (
-              <StockAlertsPanel 
-                lowStockMaterials={lowStockMaterials}
-                lowStockProducts={lowStockProducts}
-                language={language}
-              />
+              <div id="stock-alerts">
+                <StockAlertsPanel 
+                  lowStockMaterials={lowStockMaterials}
+                  lowStockProducts={lowStockProducts}
+                  language={language}
+                />
+              </div>
             )}
 
             {/* Quick Stats */}
@@ -225,6 +251,9 @@ const Index = () => {
               </Card>
             </div>
 
+            {/* Sales Chart */}
+            <DashboardChart salesRecords={salesRecords} language={language} />
+
             {/* Current Stock Overview */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card className="border-amber-200 dark:border-amber-700 dark:bg-gray-800">
@@ -232,9 +261,9 @@ const Index = () => {
                   <CardTitle className="text-amber-900 dark:text-amber-100">{t.rawMaterials}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {rawMaterials.slice(0, 5).map((material) => (
-                      <div key={material.id} className="flex justify-between items-center">
+                      <div key={material.id} className="flex justify-between items-center p-2 bg-amber-50 dark:bg-gray-700 rounded">
                         <div>
                           <span className="font-medium text-gray-900 dark:text-gray-100">
                             {language === 'en' ? material.name : material.name_ar}
@@ -262,9 +291,9 @@ const Index = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {products.map((product) => (
-                      <div key={product.id} className="flex justify-between items-center">
+                      <div key={product.id} className="flex justify-between items-center p-2 bg-amber-50 dark:bg-gray-700 rounded">
                         <div>
                           <span className="font-medium text-gray-900 dark:text-gray-100">
                             {language === 'en' ? product.name : product.name_ar}
