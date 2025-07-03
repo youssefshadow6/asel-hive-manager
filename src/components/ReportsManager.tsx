@@ -62,6 +62,20 @@ export const ReportsManager = ({ language }: ReportsManagerProps) => {
 
   const t = translations[language];
 
+  // Format date consistently in Gregorian calendar (YYYY-MM-DD)
+  const formatGregorianDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-CA'); // Always returns YYYY-MM-DD format
+  };
+
+  // Format date and time for display
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return {
+      date: date.toLocaleDateString('en-CA'), // YYYY-MM-DD
+      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+  };
+
   const getFilteredSales = () => {
     return salesRecords.filter(sale => {
       const saleDate = new Date(sale.sale_date);
@@ -240,15 +254,16 @@ export const ReportsManager = ({ language }: ReportsManagerProps) => {
                   const product = products.find(p => p.id === record.product_id);
                   const date = record.recordType === 'sale' ? record.sale_date : record.production_date;
                   const isSale = record.recordType === 'sale';
+                  const dateTime = formatDateTime(date);
                   
                   return (
                     <div key={index} className="flex justify-between items-center p-3 bg-amber-50 dark:bg-gray-700 rounded-lg">
                       <div>
                         <div className="font-medium text-amber-900 dark:text-amber-100">
-                          {language === 'en' ? product?.name : product?.name_ar}
+                          {language === 'en' ? product?.name : product?.name_ar} ({product?.size})
                         </div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">
-                          {new Date(date).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US')} - 
+                          {dateTime.date} {dateTime.time} - 
                           {isSale ? 
                             ` ${language === 'en' ? 'Sale to' : 'بيع إلى'} ${record.customer_name}` : 
                             ` ${language === 'en' ? 'Production' : 'إنتاج'}`

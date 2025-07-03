@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -35,9 +36,17 @@ export const useProducts = () => {
 
   const addProduct = async (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
     try {
+      // Validate size is not empty
+      if (!product.size || product.size.trim() === '') {
+        throw new Error('Product size cannot be empty');
+      }
+
       const { data, error } = await supabase
         .from('products')
-        .insert([product])
+        .insert([{
+          ...product,
+          size: product.size.trim() // Ensure size is trimmed
+        }])
         .select()
         .single();
 
@@ -62,9 +71,24 @@ export const useProducts = () => {
     }
     
     try {
+      // Validate size if being updated
+      if (updates.size !== undefined && (!updates.size || updates.size.trim() === '')) {
+        throw new Error('Product size cannot be empty');
+      }
+
+      const updatedData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
+
+      // Trim size if provided
+      if (updatedData.size) {
+        updatedData.size = updatedData.size.trim();
+      }
+
       const { data, error } = await supabase
         .from('products')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update(updatedData)
         .eq('id', id)
         .select()
         .single();

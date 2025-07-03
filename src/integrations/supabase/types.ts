@@ -138,7 +138,7 @@ export type Database = {
           name_ar: string
           production_cost: number | null
           selling_price: number | null
-          size: Database["public"]["Enums"]["product_size"]
+          size: string
           updated_at: string
         }
         Insert: {
@@ -150,7 +150,7 @@ export type Database = {
           name_ar: string
           production_cost?: number | null
           selling_price?: number | null
-          size: Database["public"]["Enums"]["product_size"]
+          size: string
           updated_at?: string
         }
         Update: {
@@ -162,7 +162,7 @@ export type Database = {
           name_ar?: string
           production_cost?: number | null
           selling_price?: number | null
-          size?: Database["public"]["Enums"]["product_size"]
+          size?: string
           updated_at?: string
         }
         Relationships: []
@@ -316,7 +316,6 @@ export type Database = {
     }
     Enums: {
       material_unit: "kg" | "pieces" | "sacks" | "liters" | "grams"
-      product_size: "100g" | "250g" | "500g" | "1kg" | "2kg"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -433,7 +432,6 @@ export const Constants = {
   public: {
     Enums: {
       material_unit: ["kg", "pieces", "sacks", "liters", "grams"],
-      product_size: ["100g", "250g", "500g", "1kg", "2kg"],
     },
   },
 } as const
