@@ -4,13 +4,15 @@ import { AuthPage } from "@/components/auth/AuthPage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Package, ShoppingCart, Factory, Bell, BarChart3, FileText, Trash2 } from "lucide-react";
+import { Plus, Package, ShoppingCart, Factory, Bell, BarChart3, FileText, Trash2, Users, Truck } from "lucide-react";
 import { RawMaterialsManager } from "@/components/RawMaterialsManager";
 import { ProductCatalogManager } from "@/components/ProductCatalogManager";
 import { ProductionManager } from "@/components/ProductionManager";
 import { SalesManager } from "@/components/SalesManager";
 import { StockAlertsPanel } from "@/components/StockAlertsPanel";
 import { ReportsManager } from "@/components/ReportsManager";
+import { SuppliersManager } from "@/components/SuppliersManager";
+import { CustomersManager } from "@/components/CustomersManager";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { DashboardChart } from "@/components/DashboardChart";
 import { useRawMaterials } from "@/hooks/useRawMaterials";
@@ -57,6 +59,8 @@ const Index = () => {
       production: "Production",
       sales: "Sales",
       reports: "Reports",
+      suppliers: "Suppliers",
+      customers: "Customers",
       currentStock: "Current Stock",
       lowStockAlerts: "Low Stock Alerts",
       totalValue: "Total Inventory Value",
@@ -76,6 +80,8 @@ const Index = () => {
       production: "الإنتاج",
       sales: "المبيعات",
       reports: "التقارير",
+      suppliers: "الموردين",
+      customers: "العملاء",
       currentStock: "المخزون الحالي",
       lowStockAlerts: "تنبيهات نقص المخزون",
       totalValue: "إجمالي قيمة المخزون",
@@ -169,6 +175,8 @@ const Index = () => {
               { key: 'catalog', label: t.productCatalog, icon: Factory },
               { key: 'production', label: t.production, icon: Factory },
               { key: 'sales', label: t.sales, icon: ShoppingCart },
+              { key: 'suppliers', label: t.suppliers, icon: Truck },
+              { key: 'customers', label: t.customers, icon: Users },
               { key: 'reports', label: t.reports, icon: FileText },
             ].map(({ key, label, icon: Icon }) => (
               <button
@@ -346,6 +354,14 @@ const Index = () => {
 
         {activeTab === 'sales' && (
           <SalesManager language={language} />
+        )}
+
+        {activeTab === 'suppliers' && (
+          <SuppliersManager language={language} />
+        )}
+
+        {activeTab === 'customers' && (
+          <CustomersManager language={language} />
         )}
 
         {activeTab === 'reports' && (

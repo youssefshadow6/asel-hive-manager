@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Package, AlertTriangle } from "lucide-react";
+import { Plus, Package, AlertTriangle, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { useRawMaterials } from "@/hooks/useRawMaterials";
 import { toast } from "@/hooks/use-toast";
 import type { Database } from '@/integrations/supabase/types';
@@ -20,7 +21,7 @@ type MaterialUnit = Database['public']['Enums']['material_unit'];
 const materialUnits: MaterialUnit[] = ['kg', 'pieces', 'sacks', 'liters', 'grams'];
 
 export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
-  const { materials, loading, addMaterial, receiveMaterial, updateMaterial } = useRawMaterials();
+  const { materials, loading, addMaterial, receiveMaterial, updateMaterial, deleteMaterial } = useRawMaterials();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isReceiveDialogOpen, setIsReceiveDialogOpen] = useState(false);
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
@@ -35,6 +36,7 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
   });
   const [receiveQuantity, setReceiveQuantity] = useState(0);
   const [receiveCost, setReceiveCost] = useState(0);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; material: any }>({ open: false, material: null });
 
   const translations = {
     en: {

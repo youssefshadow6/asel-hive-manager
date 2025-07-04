@@ -90,6 +90,30 @@ export const useRawMaterials = () => {
     });
   };
 
+  const deleteMaterial = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('raw_materials')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setMaterials(prev => prev.filter(m => m.id !== id));
+      toast({
+        title: 'Success',
+        description: 'Material deleted successfully'
+      });
+    } catch (error) {
+      console.error('Error deleting material:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete material',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+
   useEffect(() => {
     fetchMaterials();
   }, []);
@@ -100,6 +124,7 @@ export const useRawMaterials = () => {
     addMaterial,
     updateMaterial,
     receiveMaterial,
+    deleteMaterial,
     refetch: fetchMaterials
   };
 };

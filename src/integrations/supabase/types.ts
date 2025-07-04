@@ -9,6 +9,74 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      customer_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          customer_id: string
+          description: string | null
+          id: string
+          reference_id: string | null
+          transaction_date: string
+          transaction_type: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          customer_id: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          transaction_date?: string
+          transaction_type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          customer_id?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          transaction_date?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          contact_info: string | null
+          created_at: string
+          current_balance: number
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          contact_info?: string | null
+          created_at?: string
+          current_balance?: number
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          contact_info?: string | null
+          created_at?: string
+          current_balance?: number
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_bom: {
         Row: {
           created_at: string
@@ -202,6 +270,7 @@ export type Database = {
           name: string
           name_ar: string
           supplier: string | null
+          supplier_id: string | null
           unit: Database["public"]["Enums"]["material_unit"]
           updated_at: string
         }
@@ -215,6 +284,7 @@ export type Database = {
           name: string
           name_ar: string
           supplier?: string | null
+          supplier_id?: string | null
           unit: Database["public"]["Enums"]["material_unit"]
           updated_at?: string
         }
@@ -228,18 +298,30 @@ export type Database = {
           name?: string
           name_ar?: string
           supplier?: string | null
+          supplier_id?: string | null
           unit?: Database["public"]["Enums"]["material_unit"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "raw_materials_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sales_records: {
         Row: {
+          amount_paid: number | null
           created_at: string
+          customer_id: string | null
           customer_name: string
           id: string
           notes: string | null
           payment_method: string | null
+          payment_status: string | null
           product_id: string
           quantity: number
           sale_date: string
@@ -247,11 +329,14 @@ export type Database = {
           total_amount: number
         }
         Insert: {
+          amount_paid?: number | null
           created_at?: string
+          customer_id?: string | null
           customer_name: string
           id?: string
           notes?: string | null
           payment_method?: string | null
+          payment_status?: string | null
           product_id: string
           quantity: number
           sale_date?: string
@@ -259,11 +344,14 @@ export type Database = {
           total_amount: number
         }
         Update: {
+          amount_paid?: number | null
           created_at?: string
+          customer_id?: string | null
           customer_name?: string
           id?: string
           notes?: string | null
           payment_method?: string | null
+          payment_status?: string | null
           product_id?: string
           quantity?: number
           sale_date?: string
@@ -271,6 +359,13 @@ export type Database = {
           total_amount?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_records_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_records_product_id_fkey"
             columns: ["product_id"]
@@ -330,6 +425,74 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      supplier_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          reference_id: string | null
+          supplier_id: string
+          transaction_date: string
+          transaction_type: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          supplier_id: string
+          transaction_date?: string
+          transaction_type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          supplier_id?: string
+          transaction_date?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_transactions_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          contact_info: string | null
+          created_at: string
+          current_balance: number
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          contact_info?: string | null
+          created_at?: string
+          current_balance?: number
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          contact_info?: string | null
+          created_at?: string
+          current_balance?: number
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {

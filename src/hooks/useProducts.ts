@@ -107,6 +107,30 @@ export const useProducts = () => {
     }
   };
 
+  const deleteProduct = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setProducts(prev => prev.filter(p => p.id !== id));
+      toast({
+        title: 'Success',
+        description: 'Product deleted successfully'
+      });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete product',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -116,6 +140,7 @@ export const useProducts = () => {
     loading,
     addProduct,
     updateProduct,
+    deleteProduct,
     refetch: fetchProducts
   };
 };
