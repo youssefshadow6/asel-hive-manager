@@ -34,21 +34,21 @@ export const useProducts = () => {
     }
   };
 
-  const addProduct = async (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
+  const addProduct = async (product: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
     try {
       // Validate size is not empty
       if (!product.size || product.size.trim() === '') {
         throw new Error('Product size cannot be empty');
       }
 
-      const { data, error } = await supabase
-        .from('products')
-        .insert([{
-          ...product,
-          size: product.size.trim() // Ensure size is trimmed
-        }])
-        .select()
-        .single();
+        const { data, error } = await supabase
+          .from('products')
+          .insert({
+            ...product,
+            size: product.size.trim() // Ensure size is trimmed
+          } as any)
+          .select()
+          .single();
 
       if (error) throw error;
       setProducts(prev => [...prev, data]);

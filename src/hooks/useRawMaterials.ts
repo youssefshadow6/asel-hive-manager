@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 
 type RawMaterialRow = Database['public']['Tables']['raw_materials']['Row'];
-type RawMaterialInsert = Database['public']['Tables']['raw_materials']['Insert'];
+type RawMaterialInsert = Omit<Database['public']['Tables']['raw_materials']['Insert'], 'user_id'>;
 type RawMaterialUpdate = Database['public']['Tables']['raw_materials']['Update'];
 
 export interface RawMaterial extends RawMaterialRow {}
@@ -39,7 +39,7 @@ export const useRawMaterials = () => {
     try {
       const { data, error } = await supabase
         .from('raw_materials')
-        .insert([material])
+        .insert(material as any)
         .select()
         .single();
 

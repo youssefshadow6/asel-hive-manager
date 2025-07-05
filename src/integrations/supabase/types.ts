@@ -58,6 +58,7 @@ export type Database = {
           id: string
           name: string
           updated_at: string
+          user_id: string
         }
         Insert: {
           contact_info?: string | null
@@ -66,6 +67,7 @@ export type Database = {
           id?: string
           name: string
           updated_at?: string
+          user_id: string
         }
         Update: {
           contact_info?: string | null
@@ -74,8 +76,17 @@ export type Database = {
           id?: string
           name?: string
           updated_at?: string
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_bom: {
         Row: {
@@ -85,6 +96,7 @@ export type Database = {
           product_id: string
           quantity_per_unit: number
           updated_at: string
+          user_id: string
         }
         Insert: {
           created_at?: string
@@ -93,6 +105,7 @@ export type Database = {
           product_id: string
           quantity_per_unit: number
           updated_at?: string
+          user_id: string
         }
         Update: {
           created_at?: string
@@ -101,6 +114,7 @@ export type Database = {
           product_id?: string
           quantity_per_unit?: number
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -115,6 +129,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_bom_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -167,6 +188,7 @@ export type Database = {
           production_date: string
           quantity: number
           total_cost: number | null
+          user_id: string
         }
         Insert: {
           created_at?: string
@@ -176,6 +198,7 @@ export type Database = {
           production_date?: string
           quantity: number
           total_cost?: number | null
+          user_id: string
         }
         Update: {
           created_at?: string
@@ -185,6 +208,7 @@ export type Database = {
           production_date?: string
           quantity?: number
           total_cost?: number | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -192,6 +216,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_records_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -208,6 +239,7 @@ export type Database = {
           selling_price: number | null
           size: string
           updated_at: string
+          user_id: string
         }
         Insert: {
           created_at?: string
@@ -220,6 +252,7 @@ export type Database = {
           selling_price?: number | null
           size: string
           updated_at?: string
+          user_id: string
         }
         Update: {
           created_at?: string
@@ -232,8 +265,17 @@ export type Database = {
           selling_price?: number | null
           size?: string
           updated_at?: string
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -273,6 +315,7 @@ export type Database = {
           supplier_id: string | null
           unit: Database["public"]["Enums"]["material_unit"]
           updated_at: string
+          user_id: string
         }
         Insert: {
           cost_per_unit?: number | null
@@ -287,6 +330,7 @@ export type Database = {
           supplier_id?: string | null
           unit: Database["public"]["Enums"]["material_unit"]
           updated_at?: string
+          user_id: string
         }
         Update: {
           cost_per_unit?: number | null
@@ -301,6 +345,7 @@ export type Database = {
           supplier_id?: string | null
           unit?: Database["public"]["Enums"]["material_unit"]
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -308,6 +353,13 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raw_materials_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -327,6 +379,7 @@ export type Database = {
           sale_date: string
           sale_price: number
           total_amount: number
+          user_id: string
         }
         Insert: {
           amount_paid?: number | null
@@ -342,6 +395,7 @@ export type Database = {
           sale_date?: string
           sale_price: number
           total_amount: number
+          user_id: string
         }
         Update: {
           amount_paid?: number | null
@@ -357,6 +411,7 @@ export type Database = {
           sale_date?: string
           sale_price?: number
           total_amount?: number
+          user_id?: string
         }
         Relationships: [
           {
@@ -373,6 +428,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sales_records_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       stock_movements: {
@@ -386,6 +448,7 @@ export type Database = {
           quantity: number
           reference_id: string | null
           reference_type: string | null
+          user_id: string
         }
         Insert: {
           created_at?: string
@@ -397,6 +460,7 @@ export type Database = {
           quantity: number
           reference_id?: string | null
           reference_type?: string | null
+          user_id: string
         }
         Update: {
           created_at?: string
@@ -408,6 +472,7 @@ export type Database = {
           quantity?: number
           reference_id?: string | null
           reference_type?: string | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -422,6 +487,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -475,6 +547,7 @@ export type Database = {
           id: string
           name: string
           updated_at: string
+          user_id: string
         }
         Insert: {
           contact_info?: string | null
@@ -483,6 +556,7 @@ export type Database = {
           id?: string
           name: string
           updated_at?: string
+          user_id: string
         }
         Update: {
           contact_info?: string | null
@@ -491,8 +565,17 @@ export type Database = {
           id?: string
           name?: string
           updated_at?: string
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

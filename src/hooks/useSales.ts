@@ -54,14 +54,14 @@ export const useSales = () => {
       // Insert sale record
       const { data: saleRecord, error: saleError } = await supabase
         .from('sales_records')
-        .insert([{
+        .insert({
           product_id: productId,
           quantity,
           customer_name: customerName,
           sale_price: salePrice,
           total_amount: totalAmount,
           sale_date: saleDate || new Date().toISOString()
-        }])
+        } as any)
         .select()
         .single();
 

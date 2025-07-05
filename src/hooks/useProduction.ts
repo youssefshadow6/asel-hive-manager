@@ -55,12 +55,12 @@ export const useProduction = () => {
       // Start a transaction
       const { data: productionRecord, error: productionError } = await supabase
         .from('production_records')
-        .insert([{
+        .insert({
           product_id: productId,
           quantity,
           production_date: productionDate || new Date().toISOString(),
           notes: notes || null
-        }])
+        } as any)
         .select()
         .single();
 

@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 
 type ProductBOMRow = Database['public']['Tables']['product_bom']['Row'];
-type ProductBOMInsert = Database['public']['Tables']['product_bom']['Insert'];
+type ProductBOMInsert = Omit<Database['public']['Tables']['product_bom']['Insert'], 'user_id'>;
 
 export interface ProductBOM extends ProductBOMRow {}
 
@@ -67,7 +67,7 @@ export const useProductBOM = () => {
               product_id: productId,
               material_id: item.material_id,
               quantity_per_unit: item.quantity_per_unit
-            }))
+            })) as any
           );
 
         if (insertError) throw insertError;

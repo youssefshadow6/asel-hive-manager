@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { useRawMaterials } from "@/hooks/useRawMaterials";
+import { useSuppliers } from "@/hooks/useSuppliers";
 import { toast } from "@/hooks/use-toast";
 import type { Database } from '@/integrations/supabase/types';
 import { formatCurrency } from "@/utils/currency";
@@ -22,6 +23,7 @@ const materialUnits: MaterialUnit[] = ['kg', 'pieces', 'sacks', 'liters', 'grams
 
 export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
   const { materials, loading, addMaterial, receiveMaterial, updateMaterial, deleteMaterial } = useRawMaterials();
+  const { suppliers, addSupplier } = useSuppliers();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isReceiveDialogOpen, setIsReceiveDialogOpen] = useState(false);
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
@@ -32,7 +34,8 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
     min_threshold: 0,
     current_stock: 0,
     cost_per_unit: 0,
-    supplier: ''
+    supplier: '',
+    supplier_id: ''
   });
   const [receiveQuantity, setReceiveQuantity] = useState(0);
   const [receiveCost, setReceiveCost] = useState(0);
@@ -62,7 +65,11 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
       materialReceived: "Material received successfully",
       loading: "Loading...",
       receiveCost: "Cost per Unit for this batch",
-      totalCost: "Total Cost"
+      totalCost: "Total Cost",
+      delete: "Delete",
+      selectSupplier: "Select Supplier",
+      newSupplier: "New Supplier",
+      enterSupplierName: "Enter supplier name"
     },
     ar: {
       rawMaterials: "المواد الخام",
@@ -87,7 +94,11 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
       materialReceived: "تم استلام المادة بنجاح",
       loading: "جاري التحميل...",
       receiveCost: "التكلفة لكل وحدة لهذه الدفعة",
-      totalCost: "إجمالي التكلفة"
+      totalCost: "إجمالي التكلفة",
+      delete: "حذف",
+      selectSupplier: "اختر المورد",
+      newSupplier: "مورد جديد",
+      enterSupplierName: "أدخل اسم المورد"
     }
   };
 
@@ -104,6 +115,17 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
     }
 
     try {
+      let supplierId = newMaterial.supplier_id;
+      
+      // If "New Supplier" is selected and supplier name is provided
+      if (newMaterial.supplier_id === 'new' && newMaterial.supplier) {
+        const supplier = await addSupplier({
+          name: newMaterial.supplier,
+          contact_info: null
+        });
+        supplierId = supplier.id;
+      }
+
       await addMaterial({
         name: newMaterial.name,
         name_ar: newMaterial.name_ar,
@@ -111,7 +133,8 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
         current_stock: newMaterial.current_stock,
         min_threshold: newMaterial.min_threshold,
         cost_per_unit: newMaterial.cost_per_unit || 0,
-        supplier: newMaterial.supplier
+        supplier: newMaterial.supplier,
+        supplier_id: supplierId || null
       });
       
       setNewMaterial({
@@ -121,7 +144,8 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
         min_threshold: 0,
         current_stock: 0,
         cost_per_unit: 0,
-        supplier: ''
+        supplier: '',
+        supplier_id: ''
       });
       setIsAddDialogOpen(false);
       
@@ -245,17 +269,45 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
                   onChange={(e) => setNewMaterial({...newMaterial, current_stock: Number(e.target.value)})}
                 />
               </div>
-              <div>
-                <Label htmlFor="costPerUnit">{t.costPerUnit}</Label>
-                <Input
-                  id="costPerUnit"
-                  type="number"
-                  step="0.01"
-                  value={newMaterial.cost_per_unit}
-                  onChange={(e) => setNewMaterial({...newMaterial, cost_per_unit: Number(e.target.value)})}
-                  placeholder="0.00"
-                />
-              </div>
+                <div>
+                  <Label htmlFor="costPerUnit">{t.costPerUnit}</Label>
+                  <Input
+                    id="costPerUnit"
+                    type="number"
+                    step="0.01"
+                    value={newMaterial.cost_per_unit}
+                    onChange={(e) => setNewMaterial({...newMaterial, cost_per_unit: Number(e.target.value)})}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="supplier">{t.selectSupplier}</Label>
+                  <Select 
+                    value={newMaterial.supplier_id} 
+                    onValueChange={(value) => setNewMaterial({...newMaterial, supplier_id: value, supplier: value === 'new' ? '' : suppliers.find(s => s.id === value)?.name || ''})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t.selectSupplier} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">{t.newSupplier}</SelectItem>
+                      {suppliers.map(supplier => (
+                        <SelectItem key={supplier.id} value={supplier.id}>{supplier.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {newMaterial.supplier_id === 'new' && (
+                  <div>
+                    <Label htmlFor="supplierName">{t.enterSupplierName}</Label>
+                    <Input
+                      id="supplierName"
+                      value={newMaterial.supplier}
+                      onChange={(e) => setNewMaterial({...newMaterial, supplier: e.target.value})}
+                      placeholder={t.enterSupplierName}
+                    />
+                  </div>
+                )}
               <div className="flex space-x-2">
                 <Button onClick={handleAddMaterial} className="flex-1 bg-amber-600 hover:bg-amber-700">
                   {t.add}
@@ -314,18 +366,30 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
                   </div>
                 )}
                 
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full mt-4 border-amber-300 text-amber-700 hover:bg-amber-50"
-                  onClick={() => {
-                    setSelectedMaterialId(material.id);
-                    setIsReceiveDialogOpen(true);
-                  }}
-                >
-                  <Package className="w-4 h-4 mr-2" />
-                  {t.receive}
-                </Button>
+                <div className="flex space-x-2 mt-4">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1 border-amber-300 text-amber-700 hover:bg-amber-50"
+                    onClick={() => {
+                      setSelectedMaterialId(material.id);
+                      setIsReceiveDialogOpen(true);
+                    }}
+                  >
+                    <Package className="w-4 h-4 mr-2" />
+                    {t.receive}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-red-300 text-red-700 hover:bg-red-50"
+                    onClick={() => {
+                      setDeleteDialog({ open: true, material });
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -392,6 +456,21 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ open, material: null })}
+        onConfirm={async () => {
+          if (deleteDialog.material) {
+            await deleteMaterial(deleteDialog.material.id);
+            setDeleteDialog({ open: false, material: null });
+          }
+        }}
+        title={deleteDialog.material ? (language === 'en' ? deleteDialog.material.name : deleteDialog.material.name_ar) : ''}
+        description={language === 'en' ? 'Are you sure you want to delete this raw material? This action cannot be undone.' : 'هل أنت متأكد من حذف هذه المادة الخام؟ لا يمكن التراجع عن هذا الإجراء.'}
+        language={language}
+      />
     </div>
   );
 };

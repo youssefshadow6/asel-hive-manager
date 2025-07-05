@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useProducts } from "@/hooks/useProducts";
 import { useRawMaterials } from "@/hooks/useRawMaterials";
 import { useProductBOM } from "@/hooks/useProductBOM";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -30,7 +31,7 @@ interface BOMEntry {
 }
 
 export const ProductCatalogManager = ({ language }: ProductCatalogManagerProps) => {
-  const { products, loading: productsLoading, updateProduct, refetch: refetchProducts } = useProducts();
+  const { products, loading: productsLoading, updateProduct, deleteProduct, refetch: refetchProducts } = useProducts();
   const { materials } = useRawMaterials();
   const { fetchBOMByProduct, saveBOM } = useProductBOM();
   
@@ -38,6 +39,7 @@ export const ProductCatalogManager = ({ language }: ProductCatalogManagerProps) 
   const [isEditBOMDialogOpen, setIsEditBOMDialogOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [bomEntries, setBomEntries] = useState<BOMEntry[]>([]);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; product: any }>({ open: false, product: null });
   
   const [newProduct, setNewProduct] = useState<NewProduct>({
     name: '',
@@ -71,7 +73,8 @@ export const ProductCatalogManager = ({ language }: ProductCatalogManagerProps) 
       recipeUpdated: "Recipe updated successfully",
       currentStock: "Current Stock",
       recipe: "Recipe",
-      customSize: "Enter custom size"
+      customSize: "Enter custom size",
+      deleteProductDesc: "Are you sure you want to delete this product? This action cannot be undone."
     },
     ar: {
       productCatalog: "كتالوج المنتجات",
@@ -95,7 +98,8 @@ export const ProductCatalogManager = ({ language }: ProductCatalogManagerProps) 
       recipeUpdated: "تم تحديث الوصفة بنجاح",
       currentStock: "المخزون الحالي",
       recipe: "الوصفة",
-      customSize: "أدخل حجماً مخصصاً"
+      customSize: "أدخل حجماً مخصصاً",
+      deleteProductDesc: "هل أنت متأكد من حذف هذا المنتج؟ لا يمكن التراجع عن هذا الإجراء."
     }
   };
 
@@ -308,15 +312,25 @@ export const ProductCatalogManager = ({ language }: ProductCatalogManagerProps) 
                   </div>
                 </div>
                 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEditBOM(product.id)}
-                  className="w-full mt-4 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-900/20"
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  {t.editRecipe}
-                </Button>
+                <div className="flex space-x-2 mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditBOM(product.id)}
+                    className="flex-1 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-900/20"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    {t.editRecipe}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeleteDialog({ open: true, product })}
+                    className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-300 dark:hover:bg-red-900/20"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))
@@ -393,6 +407,21 @@ export const ProductCatalogManager = ({ language }: ProductCatalogManagerProps) 
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ open, product: null })}
+        onConfirm={async () => {
+          if (deleteDialog.product) {
+            await deleteProduct(deleteDialog.product.id);
+            setDeleteDialog({ open: false, product: null });
+          }
+        }}
+        title={deleteDialog.product ? (language === 'en' ? deleteDialog.product.name : deleteDialog.product.name_ar) : ''}
+        description={t.deleteProductDesc}
+        language={language}
+      />
     </div>
   );
 };

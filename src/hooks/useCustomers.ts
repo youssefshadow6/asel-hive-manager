@@ -4,9 +4,9 @@ import { toast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 
 type CustomerRow = Database['public']['Tables']['customers']['Row'];
-type CustomerInsert = Database['public']['Tables']['customers']['Insert'];
+type CustomerInsert = Omit<Database['public']['Tables']['customers']['Insert'], 'user_id'>;
 type CustomerUpdate = Database['public']['Tables']['customers']['Update'];
-type CustomerTransactionInsert = Database['public']['Tables']['customer_transactions']['Insert'];
+type CustomerTransactionInsert = Omit<Database['public']['Tables']['customer_transactions']['Insert'], 'user_id'>;
 
 export interface Customer extends CustomerRow {}
 
@@ -39,7 +39,7 @@ export const useCustomers = () => {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .insert([customer])
+        .insert(customer as any)
         .select()
         .single();
 
@@ -115,7 +115,7 @@ export const useCustomers = () => {
 
       const { error } = await supabase
         .from('customer_transactions')
-        .insert([transaction]);
+        .insert(transaction as any);
 
       if (error) throw error;
 
