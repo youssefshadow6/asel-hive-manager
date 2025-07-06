@@ -21,6 +21,10 @@ export interface CustomerAnalytics {
   total_spent: number;
 }
 
+interface AnalyticsResponse extends CustomerAnalytics {
+  error?: string;
+}
+
 export const useCustomerAnalytics = () => {
   const [analytics, setAnalytics] = useState<CustomerAnalytics | null>(null);
   const [loading, setLoading] = useState(false);
@@ -34,17 +38,20 @@ export const useCustomerAnalytics = () => {
 
       if (error) throw error;
 
-      if (data.error) {
+      // Type-cast the Json response to our expected interface
+      const response = data as AnalyticsResponse;
+
+      if (response?.error) {
         toast({
           title: 'Error',
-          description: data.error,
+          description: response.error,
           variant: 'destructive'
         });
         return null;
       }
 
-      setAnalytics(data);
-      return data;
+      setAnalytics(response);
+      return response;
     } catch (error) {
       console.error('Error fetching customer analytics:', error);
       toast({

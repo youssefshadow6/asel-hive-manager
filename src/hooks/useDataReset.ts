@@ -3,6 +3,11 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
+interface DataResetResponse {
+  success: boolean;
+  message: string;
+}
+
 export const useDataReset = () => {
   const [loading, setLoading] = useState(false);
 
@@ -15,19 +20,22 @@ export const useDataReset = () => {
 
       if (error) throw error;
 
-      if (data.success) {
+      // Type-cast the Json response to our expected interface
+      const response = data as DataResetResponse;
+
+      if (response?.success) {
         toast({
           title: 'Success',
-          description: data.message
+          description: response.message
         });
-        return { success: true, message: data.message };
+        return { success: true, message: response.message };
       } else {
         toast({
           title: 'Error',
-          description: data.message,
+          description: response?.message || 'Failed to reset data',
           variant: 'destructive'
         });
-        return { success: false, message: data.message };
+        return { success: false, message: response?.message || 'Failed to reset data' };
       }
     } catch (error) {
       console.error('Error resetting data:', error);
