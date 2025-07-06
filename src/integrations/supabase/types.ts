@@ -582,7 +582,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_customer_analytics: {
+        Args: { customer_uuid: string }
+        Returns: Json
+      }
+      reset_user_data: {
+        Args: { admin_password: string }
+        Returns: Json
+      }
     }
     Enums: {
       material_unit: "kg" | "pieces" | "sacks" | "liters" | "grams"

@@ -8,10 +8,13 @@ export interface SaleRecord {
   product_id: string;
   quantity: number;
   customer_name: string;
+  customer_id?: string;
   sale_price: number;
   total_amount: number;
+  amount_paid?: number;
   sale_date: string;
   payment_method?: string;
+  payment_status?: string;
   notes?: string;
   created_at: string;
 }
@@ -46,10 +49,16 @@ export const useSales = () => {
     quantity: number,
     customerName: string,
     salePrice: number,
-    saleDate?: string
+    saleDate?: string,
+    customerId?: string,
+    amountPaid?: number,
+    paymentMethod?: string,
+    notes?: string
   ) => {
     try {
       const totalAmount = quantity * salePrice;
+      const actualAmountPaid = amountPaid || totalAmount;
+      const paymentStatus = actualAmountPaid >= totalAmount ? 'paid' : 'partial';
 
       // Insert sale record
       const { data: saleRecord, error: saleError } = await supabase
@@ -58,9 +67,14 @@ export const useSales = () => {
           product_id: productId,
           quantity,
           customer_name: customerName,
+          customer_id: customerId,
           sale_price: salePrice,
           total_amount: totalAmount,
-          sale_date: saleDate || new Date().toISOString()
+          amount_paid: actualAmountPaid,
+          payment_status: paymentStatus,
+          payment_method: paymentMethod || 'cash',
+          sale_date: saleDate || new Date().toISOString(),
+          notes
         } as any)
         .select()
         .single();
@@ -85,6 +99,23 @@ export const useSales = () => {
         .eq('id', productId);
 
       if (productUpdateError) throw productUpdateError;
+
+      // If customer is selected and there's unpaid amount, create customer transaction
+      if (customerId && actualAmountPaid < totalAmount) {
+        const { error: transactionError } = await supabase
+          .from('customer_transactions')
+          .insert({
+            customer_id: customerId,
+            transaction_type: 'sale',
+            amount: totalAmount - actualAmountPaid,
+            description: `Sale - ${customerName} (${quantity} x ${salePrice})`,
+            reference_id: saleRecord.id
+          } as any);
+
+        if (transactionError) {
+          console.error('Error creating customer transaction:', transactionError);
+        }
+      }
 
       setSalesRecords(prev => [saleRecord, ...prev]);
       return saleRecord;

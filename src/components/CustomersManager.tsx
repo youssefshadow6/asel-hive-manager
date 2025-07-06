@@ -6,7 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
-import { Plus, DollarSign, Trash2, Download } from "lucide-react";
+import { CustomerAnalyticsDialog } from "@/components/CustomerAnalyticsDialog";
+import { DataResetButton } from "@/components/DataResetButton";
+import { Plus, DollarSign, Trash2, Download, BarChart3 } from "lucide-react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { formatCurrency } from "@/utils/currency";
 import { formatGregorianDate } from "@/utils/dateUtils";
@@ -20,6 +22,7 @@ export const CustomersManager = ({ language }: CustomersManagerProps) => {
   const { customers, loading, addCustomer, deleteCustomer, recordPayment } = useCustomers();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showAnalyticsDialog, setShowAnalyticsDialog] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; customer: any }>({ open: false, customer: null });
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,6 +45,7 @@ export const CustomersManager = ({ language }: CustomersManagerProps) => {
       delete: "Delete",
       search: "Search customers...",
       export: "Export",
+      analytics: "Analytics",
       confirmDelete: "Are you sure you want to delete this customer?",
       deleteWarning: "This will permanently remove the customer and all related data."
     },
@@ -60,6 +64,7 @@ export const CustomersManager = ({ language }: CustomersManagerProps) => {
       delete: "حذف",
       search: "البحث عن العملاء...",
       export: "تصدير",
+      analytics: "تحليل",
       confirmDelete: "هل أنت متأكد من حذف هذا العميل؟",
       deleteWarning: "سيؤدي هذا إلى إزالة العميل نهائياً وجميع البيانات المرتبطة به."
     }
@@ -132,6 +137,7 @@ export const CustomersManager = ({ language }: CustomersManagerProps) => {
           <CardTitle className="flex items-center justify-between">
             {t.customers}
             <div className="flex gap-2">
+              <DataResetButton language={language} />
               <Button onClick={exportToExcel} variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
                 {t.export}
@@ -213,6 +219,17 @@ export const CustomersManager = ({ language }: CustomersManagerProps) => {
                         variant="outline"
                         onClick={() => {
                           setSelectedCustomer(customer);
+                          setShowAnalyticsDialog(true);
+                        }}
+                      >
+                        <BarChart3 className="h-4 w-4 mr-1" />
+                        {t.analytics}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedCustomer(customer);
                           setShowPaymentDialog(true);
                         }}
                       >
@@ -263,6 +280,14 @@ export const CustomersManager = ({ language }: CustomersManagerProps) => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Analytics Dialog */}
+      <CustomerAnalyticsDialog
+        open={showAnalyticsDialog}
+        onOpenChange={setShowAnalyticsDialog}
+        customer={selectedCustomer}
+        language={language}
+      />
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog

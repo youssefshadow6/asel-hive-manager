@@ -80,14 +80,49 @@ export const useRawMaterials = () => {
     }
   };
 
-  const receiveMaterial = async (id: string, quantity: number) => {
+  const receiveMaterial = async (
+    id: string, 
+    quantity: number, 
+    supplierId?: string, 
+    totalCost?: number
+  ) => {
     const material = materials.find(m => m.id === id);
     if (!material) return;
 
-    return updateMaterial(id, {
-      current_stock: material.current_stock + quantity,
-      last_received: new Date().toISOString()
-    });
+    try {
+      // Update material stock
+      const updatedMaterial = await updateMaterial(id, {
+        current_stock: material.current_stock + quantity,
+        last_received: new Date().toISOString(),
+        supplier_id: supplierId || material.supplier_id
+      });
+
+      // If supplier and cost are provided, update supplier balance
+      if (supplierId && totalCost && totalCost > 0) {
+        const { error: transactionError } = await supabase
+          .from('supplier_transactions')
+          .insert({
+            supplier_id: supplierId,
+            transaction_type: 'purchase',
+            amount: totalCost,
+            description: `Purchase of ${quantity} ${material.unit} of ${material.name}`
+          } as any);
+
+        if (transactionError) {
+          console.error('Error creating supplier transaction:', transactionError);
+          toast({
+            title: 'Warning',
+            description: 'Material received but supplier balance not updated',
+            variant: 'destructive'
+          });
+        }
+      }
+
+      return updatedMaterial;
+    } catch (error) {
+      console.error('Error receiving material:', error);
+      throw error;
+    }
   };
 
   const deleteMaterial = async (id: string) => {
