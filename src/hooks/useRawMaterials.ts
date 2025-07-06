@@ -35,14 +35,18 @@ export const useRawMaterials = () => {
     }
   };
 
-  const addMaterial = async (material: RawMaterialInsert & { shipping_cost?: number }) => {
+  const addMaterial = async (material: RawMaterialInsert & { shipping_cost?: number; total_cost?: number }) => {
     try {
-      const { shipping_cost, ...materialData } = material;
+      const { shipping_cost, total_cost, ...materialData } = material;
       
-      // Add shipping cost to the unit cost if provided
-      const finalCostPerUnit = materialData.cost_per_unit 
-        ? materialData.cost_per_unit + (shipping_cost || 0)
-        : (shipping_cost || 0);
+      // Calculate unit cost: (Total Cost + Shipping Cost) ÷ Quantity
+      let finalCostPerUnit = materialData.cost_per_unit || 0;
+      
+      if (total_cost && materialData.current_stock > 0) {
+        finalCostPerUnit = (total_cost + (shipping_cost || 0)) / materialData.current_stock;
+      } else if (shipping_cost && materialData.cost_per_unit) {
+        finalCostPerUnit = materialData.cost_per_unit + shipping_cost;
+      }
 
       const { data, error } = await supabase
         .from('raw_materials')
@@ -106,27 +110,60 @@ export const useRawMaterials = () => {
     id: string, 
     quantity: number, 
     supplierId?: string, 
+    unitCost?: number,
+    shippingCost?: number,
     totalCost?: number
   ) => {
     const material = materials.find(m => m.id === id);
     if (!material) return;
 
     try {
-      // Update material stock
+      // Calculate unit cost if total cost and shipping cost are provided
+      let finalUnitCost = unitCost || material.cost_per_unit || 0;
+      let finalTotalCost = totalCost;
+      
+      if (totalCost && !unitCost) {
+        // Auto-calculate unit cost: (Total Cost + Shipping Cost) ÷ Quantity
+        finalUnitCost = (totalCost + (shippingCost || 0)) / quantity;
+        finalTotalCost = totalCost;
+      } else if (unitCost && !totalCost) {
+        // Calculate total cost from unit cost
+        finalTotalCost = (unitCost * quantity) + (shippingCost || 0);
+      }
+
+      // Update material stock and cost
       const updatedMaterial = await updateMaterial(id, {
         current_stock: material.current_stock + quantity,
         last_received: new Date().toISOString(),
-        supplier_id: supplierId || material.supplier_id
+        supplier_id: supplierId || material.supplier_id,
+        cost_per_unit: finalUnitCost
       });
 
+      // Create material receipt record
+      const { error: receiptError } = await supabase
+        .from('material_receipts')
+        .insert({
+          material_id: id,
+          supplier_id: supplierId,
+          quantity_received: quantity,
+          unit_cost: finalUnitCost,
+          shipping_cost: shippingCost || 0,
+          total_cost: finalTotalCost || (finalUnitCost * quantity),
+          received_date: new Date().toISOString()
+        } as any);
+
+      if (receiptError) {
+        console.error('Error creating material receipt:', receiptError);
+      }
+
       // If supplier and cost are provided, update supplier balance
-      if (supplierId && totalCost && totalCost > 0) {
+      if (supplierId && finalTotalCost && finalTotalCost > 0) {
         const { error: transactionError } = await supabase
           .from('supplier_transactions')
           .insert({
             supplier_id: supplierId,
             transaction_type: 'purchase',
-            amount: totalCost,
+            amount: finalTotalCost,
             description: `Purchase of ${quantity} ${material.unit} of ${material.name}`
           } as any);
 

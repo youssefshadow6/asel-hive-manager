@@ -88,6 +88,70 @@ export type Database = {
           },
         ]
       }
+      material_receipts: {
+        Row: {
+          created_at: string
+          id: string
+          material_id: string
+          notes: string | null
+          quantity_received: number
+          received_date: string
+          shipping_cost: number | null
+          supplier_id: string | null
+          total_cost: number
+          unit_cost: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          material_id: string
+          notes?: string | null
+          quantity_received: number
+          received_date?: string
+          shipping_cost?: number | null
+          supplier_id?: string | null
+          total_cost: number
+          unit_cost: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          material_id?: string
+          notes?: string | null
+          quantity_received?: number
+          received_date?: string
+          shipping_cost?: number | null
+          supplier_id?: string | null
+          total_cost?: number
+          unit_cost?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_receipts_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "raw_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_receipts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_receipts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_bom: {
         Row: {
           created_at: string

@@ -34,11 +34,15 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
     min_threshold: 0,
     current_stock: 0,
     cost_per_unit: 0,
+    shipping_cost: 0,
+    total_cost: 0,
     supplier: '',
     supplier_id: ''
   });
   const [receiveQuantity, setReceiveQuantity] = useState(0);
-  const [receiveCost, setReceiveCost] = useState(0);
+  const [receiveTotalCost, setReceiveTotalCost] = useState(0);
+  const [receiveShippingCost, setReceiveShippingCost] = useState(0);
+  const [receiveUnitCost, setReceiveUnitCost] = useState(0);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; material: any }>({ open: false, material: null });
 
   const translations = {
@@ -65,7 +69,9 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
       materialReceived: "Material received successfully",
       loading: "Loading...",
       receiveCost: "Cost per Unit for this batch",
-      totalCost: "Total Cost",
+      totalCost: "Total Cost (all units)",
+      shippingCost: "Shipping Cost",
+      unitCostCalculated: "Calculated Unit Cost",
       delete: "Delete",
       selectSupplier: "Select Supplier",
       newSupplier: "New Supplier",
@@ -94,7 +100,9 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
       materialReceived: "تم استلام المادة بنجاح",
       loading: "جاري التحميل...",
       receiveCost: "التكلفة لكل وحدة لهذه الدفعة",
-      totalCost: "إجمالي التكلفة",
+      totalCost: "إجمالي التكلفة (جميع الوحدات)",
+      shippingCost: "تكلفة الشحن",
+      unitCostCalculated: "التكلفة المحسوبة للوحدة",
       delete: "حذف",
       selectSupplier: "اختر المورد",
       newSupplier: "مورد جديد",
@@ -133,6 +141,8 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
         current_stock: newMaterial.current_stock,
         min_threshold: newMaterial.min_threshold,
         cost_per_unit: newMaterial.cost_per_unit || 0,
+        shipping_cost: newMaterial.shipping_cost || 0,
+        total_cost: newMaterial.total_cost || 0,
         supplier: newMaterial.supplier,
         supplier_id: supplierId || null
       });
@@ -144,6 +154,8 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
         min_threshold: 0,
         current_stock: 0,
         cost_per_unit: 0,
+        shipping_cost: 0,
+        total_cost: 0,
         supplier: '',
         supplier_id: ''
       });
@@ -162,24 +174,19 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
     if (!selectedMaterialId || receiveQuantity <= 0) return;
 
     try {
-      // Update the material with new average cost if provided
-      const material = materials.find(m => m.id === selectedMaterialId);
-      if (material && receiveCost > 0) {
-        const totalCurrentValue = material.current_stock * (material.cost_per_unit || 0);
-        const newBatchValue = receiveQuantity * receiveCost;
-        const newTotalStock = material.current_stock + receiveQuantity;
-        const newAverageCost = newTotalStock > 0 ? (totalCurrentValue + newBatchValue) / newTotalStock : receiveCost;
-        
-        await receiveMaterial(selectedMaterialId, receiveQuantity);
-        
-        // Update the cost per unit with the new average
-        await updateMaterial(selectedMaterialId, { cost_per_unit: newAverageCost });
-      } else {
-        await receiveMaterial(selectedMaterialId, receiveQuantity);
-      }
+      await receiveMaterial(
+        selectedMaterialId, 
+        receiveQuantity,
+        undefined, // supplier_id will be handled separately if needed
+        receiveUnitCost > 0 ? receiveUnitCost : undefined,
+        receiveShippingCost > 0 ? receiveShippingCost : undefined,
+        receiveTotalCost > 0 ? receiveTotalCost : undefined
+      );
       
       setReceiveQuantity(0);
-      setReceiveCost(0);
+      setReceiveTotalCost(0);
+      setReceiveShippingCost(0);
+      setReceiveUnitCost(0);
       setSelectedMaterialId(null);
       setIsReceiveDialogOpen(false);
       
@@ -280,6 +287,36 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
                     placeholder="0.00"
                   />
                 </div>
+                <div>
+                  <Label htmlFor="shippingCost">{t.shippingCost}</Label>
+                  <Input
+                    id="shippingCost"
+                    type="number"
+                    step="0.01"
+                    value={newMaterial.shipping_cost}
+                    onChange={(e) => setNewMaterial({...newMaterial, shipping_cost: Number(e.target.value)})}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="totalCost">{t.totalCost}</Label>
+                  <Input
+                    id="totalCost"
+                    type="number"
+                    step="0.01"
+                    value={newMaterial.total_cost}
+                    onChange={(e) => setNewMaterial({...newMaterial, total_cost: Number(e.target.value)})}
+                    placeholder="0.00"
+                  />
+                </div>
+                {newMaterial.current_stock > 0 && newMaterial.total_cost > 0 && (
+                  <div className="p-3 bg-amber-50 rounded-lg">
+                    <div className="text-sm text-gray-600">{t.unitCostCalculated}:</div>
+                    <div className="font-bold text-amber-700">
+                      {formatCurrency((newMaterial.total_cost + newMaterial.shipping_cost) / newMaterial.current_stock, language)}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="supplier">{t.selectSupplier}</Label>
                   <Select 
@@ -422,22 +459,34 @@ export const RawMaterialsManager = ({ language }: RawMaterialsManagerProps) => {
               />
             </div>
             <div>
-              <Label htmlFor="receiveCost">{t.receiveCost}</Label>
+              <Label htmlFor="totalCost">{t.totalCost}</Label>
               <Input
-                id="receiveCost"
+                id="totalCost"
                 type="number"
                 step="0.01"
-                value={receiveCost}
-                onChange={(e) => setReceiveCost(Number(e.target.value))}
+                value={receiveTotalCost}
+                onChange={(e) => setReceiveTotalCost(Number(e.target.value))}
                 placeholder="0.00"
                 min="0"
               />
             </div>
-            {receiveQuantity > 0 && receiveCost > 0 && (
+            <div>
+              <Label htmlFor="shippingCost">{t.shippingCost}</Label>
+              <Input
+                id="shippingCost"
+                type="number"
+                step="0.01"
+                value={receiveShippingCost}
+                onChange={(e) => setReceiveShippingCost(Number(e.target.value))}
+                placeholder="0.00"
+                min="0"
+              />
+            </div>
+            {receiveQuantity > 0 && receiveTotalCost > 0 && (
               <div className="p-3 bg-amber-50 rounded-lg">
-                <div className="text-sm text-gray-600">{t.totalCost}:</div>
+                <div className="text-sm text-gray-600">{t.unitCostCalculated}:</div>
                 <div className="font-bold text-amber-700">
-                  {formatCurrency(receiveQuantity * receiveCost, language)}
+                  {formatCurrency((receiveTotalCost + receiveShippingCost) / receiveQuantity, language)}
                 </div>
               </div>
             )}

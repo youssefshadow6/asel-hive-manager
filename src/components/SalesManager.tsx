@@ -9,10 +9,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useProducts } from "@/hooks/useProducts";
 import { useSales } from "@/hooks/useSales";
+import { useCustomers } from "@/hooks/useCustomers";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/utils/currency";
 import { formatGregorianDate } from "@/utils/dateUtils";
 import { InvoicePreview } from "@/components/InvoicePreview";
+import { AddCustomerDialog } from "@/components/AddCustomerDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SalesManagerProps {
@@ -22,9 +24,12 @@ interface SalesManagerProps {
 export const SalesManager = ({ language }: SalesManagerProps) => {
   const { products, refetch: refetchProducts } = useProducts();
   const { salesRecords, recordSale, refetch: refetchSales } = useSales();
+  const { customers, addCustomer } = useCustomers();
   
   const [isSaleDialogOpen, setIsSaleDialogOpen] = useState(false);
+  const [isAddCustomerDialogOpen, setIsAddCustomerDialogOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [saleQuantity, setSaleQuantity] = useState(1);
   const [customerName, setCustomerName] = useState('');
   const [salePrice, setSalePrice] = useState(0);
@@ -75,6 +80,8 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       selectProduct: "Select Product",
       quantity: "Quantity Sold",
       customerName: "Customer Name",
+      selectCustomer: "Select Customer",
+      newCustomer: "New Customer",
       price: "Price per Unit",
       saleDate: "Sale Date",
       totalPrice: "Total Price",
@@ -112,6 +119,8 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       selectProduct: "اختر المنتج",
       quantity: "الكمية المباعة",
       customerName: "اسم العميل",
+      selectCustomer: "اختر العميل",
+      newCustomer: "عميل جديد",
       price: "السعر للوحدة",
       saleDate: "تاريخ البيع",
       totalPrice: "إجمالي السعر",
@@ -229,7 +238,30 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
     }
 
     try {
-      const saleRecord = await recordSale(selectedProductId, saleQuantity, customerName.trim(), salePrice, saleDate);
+      let finalCustomerId = selectedCustomerId && selectedCustomerId !== 'new' ? selectedCustomerId : undefined;
+      
+      // If new customer, create them first
+      if (selectedCustomerId === 'new' && customerName.trim()) {
+        try {
+          const newCustomer = await addCustomer({
+            name: customerName.trim(),
+            contact_info: null
+          });
+          finalCustomerId = newCustomer.id;
+        } catch (error) {
+          console.error('Error creating customer:', error);
+          // Continue without customer ID if creation fails
+        }
+      }
+
+      const saleRecord = await recordSale(
+        selectedProductId, 
+        saleQuantity, 
+        customerName.trim(), 
+        salePrice, 
+        saleDate,
+        finalCustomerId
+      );
       
       // Refresh products data
       refetchProducts();
@@ -243,6 +275,7 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
       
       // Reset form
       setSelectedProductId('');
+      setSelectedCustomerId('');
       setSaleQuantity(1);
       setCustomerName('');
       setSalePrice(0);
@@ -315,13 +348,56 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
                     </Select>
                   </div>
                   <div>
+                    <Label htmlFor="customerSelect">{t.selectCustomer}</Label>
+                    <Select 
+                      value={selectedCustomerId} 
+                      onValueChange={(value) => {
+                        setSelectedCustomerId(value);
+                        if (value === 'new') {
+                          setCustomerName('');
+                        } else if (value) {
+                          const customer = customers.find(c => c.id === value);
+                          setCustomerName(customer?.name || '');
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <SelectValue placeholder={t.selectCustomer} />
+                      </SelectTrigger>
+                      <SelectContent className="dark:bg-gray-700 dark:border-gray-600">
+                        <SelectItem value="new" className="dark:text-white dark:hover:bg-gray-600">
+                          {t.newCustomer}
+                        </SelectItem>
+                        {customers.map(customer => (
+                          <SelectItem key={customer.id} value={customer.id} className="dark:text-white dark:hover:bg-gray-600">
+                            {customer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Label className="dark:text-gray-200">{t.customerName}</Label>
-                    <Input
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder={language === 'en' ? "Enter customer name" : "أدخل اسم العميل"}
-                      className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    />
+                    <div className="flex space-x-2">
+                      <Input
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder={language === 'en' ? "Enter customer name" : "أدخل اسم العميل"}
+                        className="flex-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        disabled={selectedCustomerId && selectedCustomerId !== 'new'}
+                      />
+                      {selectedCustomerId === 'new' && customerName.trim() && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsAddCustomerDialogOpen(true)}
+                          className="dark:border-gray-600 dark:text-gray-200"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -617,6 +693,17 @@ export const SalesManager = ({ language }: SalesManagerProps) => {
         onClose={() => setIsInvoiceOpen(false)}
         saleRecord={currentInvoiceData?.saleRecord || null}
         product={currentInvoiceData?.product || null}
+        language={language}
+      />
+
+      {/* Add Customer Dialog */}
+      <AddCustomerDialog
+        open={isAddCustomerDialogOpen}
+        onOpenChange={setIsAddCustomerDialogOpen}
+        onCustomerAdded={(customer) => {
+          setSelectedCustomerId(customer.id);
+          setCustomerName(customer.name);
+        }}
         language={language}
       />
     </div>
