@@ -21,7 +21,7 @@ export const useDataReset = () => {
       if (error) throw error;
 
       // Type-cast the Json response to our expected interface
-      const response = data as DataResetResponse;
+      const response = data as unknown as DataResetResponse;
 
       if (response?.success) {
         toast({

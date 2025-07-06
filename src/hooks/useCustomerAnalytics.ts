@@ -39,7 +39,7 @@ export const useCustomerAnalytics = () => {
       if (error) throw error;
 
       // Type-cast the Json response to our expected interface
-      const response = data as AnalyticsResponse;
+      const response = data as unknown as AnalyticsResponse;
 
       if (response?.error) {
         toast({
