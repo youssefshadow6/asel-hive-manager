@@ -121,6 +121,12 @@ export const useProduction = () => {
       if (productUpdateError) throw productUpdateError;
 
       setProductionRecords(prev => [productionRecord, ...prev]);
+      
+      toast({
+        title: 'Success',
+        description: 'Production recorded successfully'
+      });
+      
       return productionRecord;
 
     } catch (error) {
@@ -128,6 +134,119 @@ export const useProduction = () => {
       toast({
         title: 'Error',
         description: 'Failed to record production',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+
+  const updateProductionRecord = async (
+    id: string,
+    updates: Partial<ProductionRecord>
+  ) => {
+    try {
+      const { data, error } = await supabase
+        .from('production_records')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setProductionRecords(prev => prev.map(r => r.id === id ? data : r));
+      
+      toast({
+        title: 'Success',
+        description: 'Production record updated successfully'
+      });
+      
+      return data;
+    } catch (error) {
+      console.error('Error updating production record:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update production record. Please check all fields are valid.',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+
+  const deleteProductionRecord = async (id: string) => {
+    try {
+      // Check if this will cause issues with stock levels
+      const productionRecord = productionRecords.find(r => r.id === id);
+      if (!productionRecord) {
+        toast({
+          title: 'Error',
+          description: 'Production record not found',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Get current product stock
+      const { data: currentProduct, error: productError } = await supabase
+        .from('products')
+        .select('current_stock')
+        .eq('id', productionRecord.product_id)
+        .single();
+
+      if (productError) throw productError;
+
+      // Check if we have enough stock to reverse this production
+      if (currentProduct.current_stock < productionRecord.quantity) {
+        toast({
+          title: 'Cannot Delete Production Record',
+          description: `Cannot delete this production record because the current product stock (${currentProduct.current_stock}) is less than the produced quantity (${productionRecord.quantity}). This would result in negative stock.`,
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Delete production materials first
+      const { error: materialsDeleteError } = await supabase
+        .from('production_materials')
+        .delete()
+        .eq('production_record_id', id);
+
+      if (materialsDeleteError) throw materialsDeleteError;
+
+      // Delete the production record
+      const { error: deleteError } = await supabase
+        .from('production_records')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) throw deleteError;
+
+      // Update product stock (reduce by the production quantity)
+      const { error: productUpdateError } = await supabase
+        .from('products')
+        .update({
+          current_stock: currentProduct.current_stock - productionRecord.quantity,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', productionRecord.product_id);
+
+      if (productUpdateError) throw productUpdateError;
+
+      setProductionRecords(prev => prev.filter(r => r.id !== id));
+      
+      toast({
+        title: 'Success',
+        description: 'Production record deleted successfully and stock levels adjusted'
+      });
+
+    } catch (error) {
+      console.error('Error deleting production record:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete production record. Please try again or contact support.',
         variant: 'destructive'
       });
       throw error;
@@ -142,6 +261,8 @@ export const useProduction = () => {
     productionRecords,
     loading,
     recordProduction,
+    updateProductionRecord,
+    deleteProductionRecord,
     refetch: fetchProductionRecords
   };
 };

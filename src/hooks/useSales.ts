@@ -60,6 +60,24 @@ export const useSales = () => {
       const actualAmountPaid = amountPaid || totalAmount;
       const paymentStatus = actualAmountPaid >= totalAmount ? 'paid' : 'partial';
 
+      // Check product stock first
+      const { data: currentProduct, error: productFetchError } = await supabase
+        .from('products')
+        .select('current_stock, name')
+        .eq('id', productId)
+        .single();
+
+      if (productFetchError) throw productFetchError;
+
+      if (currentProduct.current_stock < quantity) {
+        toast({
+          title: 'Insufficient Stock',
+          description: `Cannot record sale. Only ${currentProduct.current_stock} units of ${currentProduct.name} are available, but you're trying to sell ${quantity} units.`,
+          variant: 'destructive'
+        });
+        throw new Error('Insufficient stock');
+      }
+
       // Insert sale record
       const { data: saleRecord, error: saleError } = await supabase
         .from('sales_records')
@@ -82,14 +100,6 @@ export const useSales = () => {
       if (saleError) throw saleError;
 
       // Update product stock
-      const { data: currentProduct, error: productFetchError } = await supabase
-        .from('products')
-        .select('current_stock')
-        .eq('id', productId)
-        .single();
-
-      if (productFetchError) throw productFetchError;
-
       const { error: productUpdateError } = await supabase
         .from('products')
         .update({
@@ -114,19 +124,32 @@ export const useSales = () => {
 
         if (transactionError) {
           console.error('Error creating customer transaction:', transactionError);
+          toast({
+            title: 'Warning',
+            description: `Sale recorded successfully, but failed to update customer balance. Please manually adjust customer ${customerName}'s balance.`,
+            variant: 'destructive'
+          });
         }
       }
 
       setSalesRecords(prev => [saleRecord, ...prev]);
+      
+      toast({
+        title: 'Success',
+        description: 'Sale recorded successfully'
+      });
+      
       return saleRecord;
 
     } catch (error) {
       console.error('Error recording sale:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to record sale',
-        variant: 'destructive'
-      });
+      if (error.message !== 'Insufficient stock') {
+        toast({
+          title: 'Error',
+          description: 'Failed to record sale. Please check all fields and try again.',
+          variant: 'destructive'
+        });
+      }
       throw error;
     }
   };

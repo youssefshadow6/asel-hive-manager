@@ -35,16 +35,32 @@ export const useRawMaterials = () => {
     }
   };
 
-  const addMaterial = async (material: RawMaterialInsert) => {
+  const addMaterial = async (material: RawMaterialInsert & { shipping_cost?: number }) => {
     try {
+      const { shipping_cost, ...materialData } = material;
+      
+      // Add shipping cost to the unit cost if provided
+      const finalCostPerUnit = materialData.cost_per_unit 
+        ? materialData.cost_per_unit + (shipping_cost || 0)
+        : (shipping_cost || 0);
+
       const { data, error } = await supabase
         .from('raw_materials')
-        .insert(material as any)
+        .insert({
+          ...materialData,
+          cost_per_unit: finalCostPerUnit
+        } as any)
         .select()
         .single();
 
       if (error) throw error;
       setMaterials(prev => [...prev, data]);
+      
+      toast({
+        title: 'Success',
+        description: 'Raw material added successfully'
+      });
+      
       return data;
     } catch (error) {
       console.error('Error adding material:', error);
@@ -68,12 +84,18 @@ export const useRawMaterials = () => {
 
       if (error) throw error;
       setMaterials(prev => prev.map(m => m.id === id ? data : m));
+      
+      toast({
+        title: 'Success',
+        description: 'Raw material updated successfully'
+      });
+      
       return data;
     } catch (error) {
       console.error('Error updating material:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update material',
+        description: 'Failed to update material. Please check if all required fields are filled correctly.',
         variant: 'destructive'
       });
       throw error;
@@ -127,22 +149,59 @@ export const useRawMaterials = () => {
 
   const deleteMaterial = async (id: string) => {
     try {
+      // First check if material is used in any production records
+      const { data: productionMaterials, error: checkError } = await supabase
+        .from('production_materials')
+        .select('id')
+        .eq('material_id', id)
+        .limit(1);
+
+      if (checkError) throw checkError;
+
+      if (productionMaterials && productionMaterials.length > 0) {
+        toast({
+          title: 'Cannot Delete Material',
+          description: 'This raw material cannot be deleted because it is linked to production records. Please remove it from production records first.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Check if material is used in product BOM
+      const { data: bomEntries, error: bomError } = await supabase
+        .from('product_bom')
+        .select('id')
+        .eq('material_id', id)
+        .limit(1);
+
+      if (bomError) throw bomError;
+
+      if (bomEntries && bomEntries.length > 0) {
+        toast({
+          title: 'Cannot Delete Material',
+          description: 'This raw material cannot be deleted because it is used in product recipes (BOM). Please remove it from product recipes first.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('raw_materials')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+      
       setMaterials(prev => prev.filter(m => m.id !== id));
       toast({
         title: 'Success',
-        description: 'Material deleted successfully'
+        description: 'Raw material deleted successfully'
       });
     } catch (error) {
       console.error('Error deleting material:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete material',
+        description: 'Failed to delete material. Please try again or contact support if the issue persists.',
         variant: 'destructive'
       });
       throw error;
